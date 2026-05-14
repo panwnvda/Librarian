@@ -1,0 +1,629 @@
+@import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=Barlow+Semi+Condensed:wght@400;500;600;700;800&family=Bebas+Neue&family=Exo+2:wght@400;500;600;700;800;900&family=Montserrat:wght@400;500;600;700;800;900&family=Titillium+Web:wght@400;600;700;900&family=Cantarell:wght@400;700&family=Cormorant+Garamond:wght@500;600;700&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&family=DM+Serif+Display:ital@0;1&family=Fira+Code:wght@300;400;500;600;700&family=Fjalla+One&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=IBM+Plex+Serif:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@300;400;500;600;700;800&family=Lato:wght@300;400;700;900&family=Manrope:wght@400;500;600;700;800&family=Noto+Sans:wght@300;400;500;600;700;800&family=Nunito:wght@300;400;500;600;700;800&family=Open+Sans:wght@300;400;500;600;700;800&family=Oswald:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&family=Passion+One:wght@400;700;900&family=Playfair+Display:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&family=Raleway:wght@500;600;700;800&family=Roboto:wght@300;400;500;700;900&family=Sora:wght@400;500;600;700;800&family=Source+Code+Pro:wght@300;400;500;600;700;900&family=Space+Grotesk:wght@400;500;700&family=Syne:wght@500;600;700;800&family=Ubuntu:wght@300;400;500;700&family=Work+Sans:wght@300;400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 3.9%;
+    --primary: 0 0% 9%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 0 0% 96.1%;
+    --secondary-foreground: 0 0% 9%;
+    --muted: 0 0% 96.1%;
+    --muted-foreground: 0 0% 45.1%;
+    --accent: 0 0% 96.1%;
+    --accent-foreground: 0 0% 9%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 89.8%;
+    --input: 0 0% 89.8%;
+    --ring: 0 0% 3.9%;
+    --chart-1: 12 76% 61%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+    --radius: 0.5rem;
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    --background: 0 0% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 0 0% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 0 0% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 0 0% 9%;
+    --secondary: 0 0% 14.9%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 0 0% 14.9%;
+    --muted-foreground: 0 0% 63.9%;
+    --accent: 0 0% 14.9%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 14.9%;
+    --input: 0 0% 14.9%;
+    --ring: 0 0% 83.1%;
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--app-font, 'Inter', sans-serif);
+    background-color: #1a1a1a;
+    color: #e8e8e8;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+}
+
+::selection {
+  background: rgba(91, 134, 200, 0.28);
+  color: #f5f5f5;
+}
+
+/* Notion-style scrollbars (faint, on-demand) */
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: transparent;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  background-clip: padding-box;
+}
+*:hover::-webkit-scrollbar-thumb {
+  background: #3a3a3a;
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: #4a4a4a;
+  background-clip: padding-box;
+}
+
+.map-drag-scroll {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  touch-action: pan-y;
+}
+
+.map-drag-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.glass-panel {
+  background: #202020;
+  border: 1px solid #3a3a3a;
+}
+
+.soft-panel {
+  background: #272727;
+  border: 1px solid #3a3a3a;
+}
+
+.control-chip {
+  transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+}
+
+.font-title-outfit {
+  font-family: 'Outfit', sans-serif;
+}
+
+.font-title-sora {
+  font-family: 'Sora', sans-serif;
+}
+
+.font-title-manrope {
+  font-family: 'Manrope', sans-serif;
+}
+
+.font-title-space {
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+.font-title-serif {
+  font-family: 'IBM Plex Serif', serif;
+}
+
+.font-title-dmserif {
+  font-family: 'DM Serif Display', serif;
+}
+
+.font-title-editorial {
+  font-family: 'Cormorant Garamond', serif;
+}
+
+.font-title-display {
+  font-family: 'Bebas Neue', sans-serif;
+  letter-spacing: 0.08em;
+}
+
+.font-title-archivo {
+  font-family: 'Archivo Black', sans-serif;
+  letter-spacing: 0.02em;
+}
+
+.font-title-jakarta {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+.font-title-syne {
+  font-family: 'Syne', sans-serif;
+}
+
+.font-title-fraunces {
+  font-family: 'Fraunces', serif;
+}
+
+.font-title-oswald {
+  font-family: 'Oswald', sans-serif;
+  letter-spacing: 0.04em;
+}
+
+.font-title-fjalla {
+  font-family: 'Fjalla One', sans-serif;
+  letter-spacing: 0.03em;
+}
+
+.font-title-passion {
+  font-family: 'Passion One', sans-serif;
+  letter-spacing: 0.04em;
+}
+
+.font-title-barlow {
+  font-family: 'Barlow Semi Condensed', sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.font-title-exo {
+  font-family: 'Exo 2', sans-serif;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.font-title-titillium {
+  font-family: 'Titillium Web', sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.font-title-montserrat {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.font-title-raleway {
+  font-family: 'Raleway', sans-serif;
+}
+
+.font-title-playfair {
+  font-family: 'Playfair Display', serif;
+}
+
+.font-title-noto {
+  font-family: 'Noto Sans', sans-serif;
+}
+
+.font-title-ubuntu {
+  font-family: 'Ubuntu', sans-serif;
+}
+
+.font-title-cantarell {
+  font-family: 'Cantarell', sans-serif;
+}
+
+.font-title-roboto {
+  font-family: 'Roboto', sans-serif;
+}
+
+.font-title-opensans {
+  font-family: 'Open Sans', sans-serif;
+}
+
+.font-title-lato {
+  font-family: 'Lato', sans-serif;
+}
+
+.font-title-poppins {
+  font-family: 'Poppins', sans-serif;
+}
+
+.font-title-nunito {
+  font-family: 'Nunito', sans-serif;
+}
+
+.font-title-work {
+  font-family: 'Work Sans', sans-serif;
+}
+
+.font-title-dmsans {
+  font-family: 'DM Sans', sans-serif;
+}
+
+.font-title-fira {
+  font-family: 'Fira Code', monospace;
+}
+
+.font-title-source {
+  font-family: 'Source Code Pro', monospace;
+}
+
+/* Document editor — preview pane typography */
+.doc-preview h1 { font-size: 1.75rem; font-weight: 700; color: #e8e8e8; margin: 1.5rem 0 0.75rem; }
+.doc-preview h2 { font-size: 1.35rem; font-weight: 700; color: #e8e8e8; margin: 1.25rem 0 0.6rem; }
+.doc-preview h3 { font-size: 1.1rem;  font-weight: 600; color: #c4c4c4; margin: 1rem 0 0.5rem; }
+.doc-preview p  { font-size: 15px; line-height: 1.85; color: #9d9d9d; margin: 0.6rem 0; }
+.doc-preview ul, .doc-preview ol { font-size: 15px; line-height: 1.8; color: #9d9d9d; }
+
+/* Buttons inherit the page font by default. Specific brand surfaces can opt-in to a display font. */
+button {
+  font-family: inherit;
+  letter-spacing: 0;
+}
+
+/* ─── Full-height layout ─────────────────────────────────────────────────── */
+html, body, #root {
+  height: 100%;
+  overflow: hidden;
+}
+
+/* ─── BlockNote dark theme — map Mantine palette to our design tokens ─────── */
+[data-mantine-color-scheme="dark"] {
+  --mantine-color-dark-9: #1a1a1a;
+  --mantine-color-dark-8: #202020;
+  --mantine-color-dark-7: #272727;
+  --mantine-color-dark-6: #2a2a2a;
+  --mantine-color-dark-5: #3a3a3a;
+  --mantine-color-dark-4: #6e6e6e;
+  --mantine-color-dark-3: #9d9d9d;
+  --mantine-color-dark-2: #c4c4c4;
+  --mantine-color-dark-1: #e8e8e8;
+  --mantine-color-dark-0: #f5f5f5;
+  --mantine-color-body: #1a1a1a;
+  --mantine-color-text: #e8e8e8;
+  --mantine-primary-color-filled: #5b86c8;
+  --mantine-primary-color-filled-hover: #7ea0d2;
+}
+
+/* Editor text + background */
+.bn-editor {
+  font-family: var(--app-font, 'Inter', sans-serif) !important;
+  color: #e8e8e8 !important;
+  background: transparent !important;
+  caret-color: #5b86c8;
+}
+
+/* Placeholder */
+.bn-editor .bn-block-content[data-is-empty-and-focused="true"]::before,
+.bn-editor .bn-block-content[data-is-placeholder-visible="true"]::before {
+  color: #3a3a3a !important;
+}
+
+/* Slash / suggestion menu */
+.bn-suggestion-menu {
+  background: #202020 !important;
+  border: 1px solid #3a3a3a !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6) !important;
+  border-radius: 10px !important;
+}
+.bn-suggestion-menu-item {
+  color: #9d9d9d !important;
+  border-radius: 6px !important;
+}
+.bn-suggestion-menu-item[data-highlighted="true"],
+.bn-suggestion-menu-item:hover {
+  background: #2a2a2a !important;
+  color: #e8e8e8 !important;
+}
+
+/* Inline formatting toolbar */
+.bn-formatting-toolbar {
+  background: #202020 !important;
+  border: 1px solid #3a3a3a !important;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.6) !important;
+  border-radius: 10px !important;
+}
+.bn-toolbar-button {
+  color: #9d9d9d !important;
+  border-radius: 6px !important;
+}
+.bn-toolbar-button:hover,
+.bn-toolbar-button[data-active="true"] {
+  background: #2a2a2a !important;
+  color: #e8e8e8 !important;
+}
+
+/* Drag handle */
+.bn-drag-handle-button {
+  color: #6e6e6e !important;
+}
+.bn-drag-handle-button:hover {
+  background: #202020 !important;
+  color: #9d9d9d !important;
+}
+
+/* Code blocks — BlockNote built-in. Always selectable, language picker visible. */
+.bn-editor code,
+.bn-editor pre {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace !important;
+}
+.bn-editor .bn-block-content[data-content-type="codeBlock"] {
+  background: #181818 !important;
+  border: 1px solid #2a2a2a !important;
+  border-radius: 8px !important;
+  position: relative !important;
+  color: #e8e8e8 !important;
+  user-select: text !important;
+  -webkit-user-select: text !important;
+}
+.bn-editor .bn-block-content[data-content-type="codeBlock"] > pre {
+  padding: 36px 18px 18px !important;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace !important;
+  font-size: 13.5px !important;
+  line-height: 1.65 !important;
+  color: #e8e8e8 !important;
+  user-select: text !important;
+  -webkit-user-select: text !important;
+}
+/* Language picker — a real-looking pill button at the top-right of the code block.
+   BlockNote wraps the <select> in a <div contenteditable="false">. */
+.bn-editor .bn-block-content[data-content-type="codeBlock"] > div:has(> select) {
+  position: absolute !important;
+  top: 8px !important;
+  right: 10px !important;
+  z-index: 5 !important;
+  pointer-events: auto !important;
+}
+.bn-editor .bn-block-content[data-content-type="codeBlock"] > div > select {
+  opacity: 1 !important;
+  background: rgba(255,255,255,0.04) !important;
+  border: 1px solid #2f2f2f !important;
+  border-radius: 6px !important;
+  color: #c4c4c4 !important;
+  font-size: 11.5px !important;
+  font-weight: 500 !important;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace !important;
+  padding: 3px 22px 3px 8px !important;
+  cursor: pointer !important;
+  outline: none !important;
+  position: static !important;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease !important;
+  /* Hide default arrow, draw our own as a background image */
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23a0a0a0' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'></polyline></svg>") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 6px center !important;
+  background-size: 9px !important;
+}
+.bn-editor .bn-block-content[data-content-type="codeBlock"] > div > select:hover {
+  background-color: rgba(255,255,255,0.07) !important;
+  border-color: #3a3a3a !important;
+  color: #e8e8e8 !important;
+}
+.bn-editor .bn-block-content[data-content-type="codeBlock"] > div > select:focus {
+  background-color: rgba(255,255,255,0.08) !important;
+  border-color: #5b86c8 !important;
+  color: #e8e8e8 !important;
+}
+.bn-editor .bn-block-content[data-content-type="codeBlock"] > div > select > option {
+  background: #1f1f1f !important;
+  color: #e8e8e8 !important;
+  font-weight: 400 !important;
+}
+/* Bump the code padding so text doesn't sit under the picker pill */
+.bn-editor .bn-block-content[data-content-type="codeBlock"] > pre {
+  padding: 14px 16px 16px !important;
+}
+/* Shiki rendered tokens — let them keep their inline colors but normalize spacing */
+.bn-editor .bn-block-content[data-content-type="codeBlock"] .shiki,
+.bn-editor .bn-block-content[data-content-type="codeBlock"] code {
+  background: transparent !important;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace !important;
+}
+
+/* Callout */
+.bn-editor [data-content-type="callout"] {
+  background: #272727 !important;
+  border-left: 3px solid #5b86c8 !important;
+}
+
+/* Quote */
+.bn-editor [data-content-type="quote"],
+.bn-editor blockquote {
+  border-left-color: #3a3a3a !important;
+  color: #9d9d9d !important;
+}
+
+/* Selection */
+.bn-editor ::selection {
+  background: rgba(91, 134, 200, 0.28);
+}
+
+/* Side menu (left-side block handle) */
+.bn-side-menu {
+  color: #6e6e6e !important;
+}
+
+/* Table block — neutral gray, refined cells */
+.bn-editor [data-content-type="table"] table,
+.bn-editor table.bn-table {
+  border-collapse: collapse !important;
+}
+.bn-editor [data-content-type="table"] td,
+.bn-editor [data-content-type="table"] th,
+.bn-editor table.bn-table td,
+.bn-editor table.bn-table th {
+  border: 1px solid #2a2a2a !important;
+  background: #1f1f1f !important;
+  color: #d4d4d4 !important;
+  padding: 6px 10px !important;
+  min-width: 80px !important;
+}
+.bn-editor [data-content-type="table"] th,
+.bn-editor table.bn-table th {
+  background: #242424 !important;
+  color: #e8e8e8 !important;
+  font-weight: 600 !important;
+}
+/* Table handles (the +/-/drag affordances) */
+.bn-table-handle,
+.bn-table-add-button {
+  background: #2a2a2a !important;
+  color: #c4c4c4 !important;
+  border: 1px solid #3a3a3a !important;
+}
+.bn-table-handle:hover,
+.bn-table-add-button:hover {
+  background: #3a3a3a !important;
+  color: #e8e8e8 !important;
+}
+
+/* Kill the default ProseMirror node-selection outline — Obsidian doesn't show
+   a highlight on the block you're typing in, so we don't either. */
+.bn-editor .ProseMirror-selectednode,
+.bn-editor .bn-block-content.ProseMirror-selectednode > *,
+.bn-editor .ProseMirror-selectednode > .bn-block-content > *,
+.bn-editor [data-node-selected] {
+  outline: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+/* Also no focus ring on the editable surface itself */
+.bn-editor:focus,
+.bn-editor:focus-within,
+.bn-editor [contenteditable]:focus {
+  outline: none !important;
+}
+
+/* Notion-style block rhythm.
+   BlockNote's default CSS:
+     - .bn-block-content[data-content-type=heading] sets `padding-top: 18px` and `--level: 3em/2em/1.3em`
+     - .bn-block-content has `padding: 3px 0`
+   We override font-size to fixed pixel values and tighten the heading
+   top-padding so headings don't create a huge gap. */
+
+/* Notion typography — H1 30px / H2 24px / H3 20px, body 16px.
+   Headings sit further from the previous block than from the next (the "section break" feel). */
+
+/* H1 — 30px bold, ~30px gap above (when not the first block), ~6px below */
+.bn-editor [data-content-type="heading"][data-level="1"] {
+  font-size: 30px !important;
+  font-weight: 700 !important;
+  line-height: 1.3 !important;
+  letter-spacing: -0.015em !important;
+  color: #f0f0f0 !important;
+}
+.bn-editor .bn-block-content[data-content-type="heading"][data-level="1"] {
+  padding-top: 30px !important;
+  padding-bottom: 4px !important;
+}
+
+/* H2 — 24px semibold, ~26px gap above, ~4px below */
+.bn-editor [data-content-type="heading"][data-level="2"] {
+  font-size: 24px !important;
+  font-weight: 600 !important;
+  line-height: 1.3 !important;
+  letter-spacing: -0.01em !important;
+  color: #ececec !important;
+}
+.bn-editor .bn-block-content[data-content-type="heading"][data-level="2"] {
+  padding-top: 26px !important;
+  padding-bottom: 3px !important;
+}
+
+/* H3 — 20px semibold, ~20px gap above, ~2px below */
+.bn-editor [data-content-type="heading"][data-level="3"] {
+  font-size: 20px !important;
+  font-weight: 600 !important;
+  line-height: 1.3 !important;
+  color: #e8e8e8 !important;
+}
+.bn-editor .bn-block-content[data-content-type="heading"][data-level="3"] {
+  padding-top: 20px !important;
+  padding-bottom: 2px !important;
+}
+
+/* First block in the document — heading hugs the title (no gap). */
+.bn-editor .bn-block-group > .bn-block-outer:first-child > .bn-block > .bn-block-content[data-content-type="heading"] {
+  padding-top: 4px !important;
+}
+
+/* Paragraph + list rhythm — Notion-tight. 14px text, 1.5 line-height, ~3px block padding. */
+.bn-editor [data-content-type="paragraph"],
+.bn-editor [data-content-type="bulletListItem"],
+.bn-editor [data-content-type="numberedListItem"],
+.bn-editor [data-content-type="checkListItem"] {
+  font-size: 14px !important;
+  line-height: 1.5 !important;
+  color: #d4d4d4 !important;
+}
+.bn-editor .bn-block-content[data-content-type="paragraph"],
+.bn-editor .bn-block-content[data-content-type="bulletListItem"],
+.bn-editor .bn-block-content[data-content-type="numberedListItem"],
+.bn-editor .bn-block-content[data-content-type="checkListItem"] {
+  padding: 3px 2px !important;
+}
+
+/* Don't let Mantine reset override our font var */
+body {
+  font-family: var(--app-font, 'Inter', sans-serif) !important;
+}
+
+/* Scope BlockNote box-sizing to avoid leaking into Tailwind components */
+.bn-container *,
+.bn-container *::before,
+.bn-container *::after {
+  box-sizing: border-box;
+}
+
+/* Match editor width/padding to our title input */
+.blocknote-wrapper .bn-editor {
+  padding-left: 1px !important;
+  padding-right: 1px !important;
+}

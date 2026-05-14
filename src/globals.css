@@ -1,0 +1,108 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-primary: #0a0e1a;
+  --bg-card: #111827;
+  --bg-card-hover: #1a2235;
+  --border-subtle: #1e293b;
+  --text-primary: #f1f5f9;
+  --text-secondary: #9d9d9d;
+  --text-muted: #64748b;
+  --accent-cyan: #22d3ee;
+  --accent-green: #4ade80;
+  --accent-red: #f87171;
+  --accent-purple: #c084fc;
+  --accent-orange: #fb923c;
+  --accent-pink: #f472b6;
+  --accent-blue: #60a5fa;
+  --accent-yellow: #fbbf24;
+}
+
+body {
+  background-color: #1a1a1a;
+  color: var(--text-primary);
+  font-family: var(--app-font, 'Inter', sans-serif);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #1e293b transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 3px;
+}
+
+.font-mono {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+@layer base {
+  :root {
+    --background: 222 47% 7%;
+    --foreground: 210 40% 96%;
+    --card: 222 47% 9%;
+    --card-foreground: 210 40% 96%;
+    --popover: 222 47% 9%;
+    --popover-foreground: 210 40% 96%;
+    --primary: 187 80% 53%;
+    --primary-foreground: 222 47% 7%;
+    --secondary: 217 33% 17%;
+    --secondary-foreground: 210 40% 96%;
+    --muted: 217 33% 17%;
+    --muted-foreground: 215 20% 55%;
+    --accent: 217 33% 17%;
+    --accent-foreground: 210 40% 96%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 96%;
+    --border: 217 33% 17%;
+    --input: 217 33% 17%;
+    --ring: 187 80% 53%;
+    --radius: 0.5rem;
+  }
+}
+
+.technique-card {
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.map-node {
+  transition: all 0.15s ease;
+}
+
+.map-node:hover {
+  transform: scale(1.02);
+  z-index: 10;
+}
+
+.step-connector {
+  position: relative;
+}
+
+.step-connector::after {
+  content: '';
+  position: absolute;
+  left: 16px;
+  top: 40px;
+  bottom: -8px;
+  width: 1px;
+  background: #2d3748;
+}
+
+.step-connector:last-child::after {
+  display: none;
+}

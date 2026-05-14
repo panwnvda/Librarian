@@ -1,0 +1,991 @@
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { BlockNoteView } from '@blocknote/mantine';
+import { useCreateBlockNote, SuggestionMenuController, getDefaultReactSlashMenuItems } from '@blocknote/react';
+import { filterSuggestionItems } from '@blocknote/core';
+import '@blocknote/mantine/style.css';
+import { Image as ImageIcon, Smile, X, ChevronRight, Shield, Map, Type, Palette, FileText, List, FileCode, AlignLeft, AlignCenter } from 'lucide-react';
+import { schema } from '@/blocks/schema';
+import { titleFontOptions } from '@/lib/pageStyleOptions';
+import { ColorPickerPopover } from '@/components/ColorPicker';
+import MoreFontsModal from '@/components/MoreFontsModal';
+import { ensureGoogleFont, buildStack, GOOGLE_FONTS_CATALOG } from '@/lib/googleFonts';
+
+const CATALOG_BY_FAMILY = Object.fromEntries(GOOGLE_FONTS_CATALOG.map(([family, cat]) => [family, cat]));
+import { TEMPLATES } from '@/lib/pageTemplates';
+import MarkdownEditor from '@/components/MarkdownEditor';
+import EditorContextMenu from '@/components/EditorContextMenu';
+import IconPicker from '@/components/IconPicker';
+import { renderIcon } from '@/lib/iconRegistry';
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function getAncestors(page, pages) {
+  const chain = [];
+  let current = page;
+  while (current?.parentId) {
+    const parent = pages.find((p) => p.id === current.parentId);
+    if (!parent) break;
+    chain.unshift(parent);
+    current = parent;
+  }
+  return chain;
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
+
+export default function PageEditor(props) {
+  if (props.page?.mode === 'markdown') {
+    return <MarkdownPageEditor {...props} />;
+  }
+  return <BlockPageEditor {...props} />;
+}
+
+function BlockPageEditor({ page, allPages = [], initialBlocks, updatePage, saveContent, createPage }) {
+  const [title, setTitle]       = useState(page?.title ?? 'Untitled');
+  const [icon, setIcon]         = useState(page?.icon ?? null);
+  const [cover, setCover]       = useState(page?.cover ?? null);
+  const [fontClass, setFontClass] = useState(page?.fontClass ?? '');
+  const [titleColor, setTitleColor] = useState(page?.titleColor ?? '#e8e8e8');
+  const [iconAnchor, setIconAnchor] = useState(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const [showToc, setShowToc] = useState(false);
+  const [headings, setHeadings] = useState([]);
+  const [showTemplatePicker, setShowTemplatePicker] = useState(!initialBlocks?.length);
+  const [wordCount, setWordCount] = useState({ words: 0, blocks: 0 });
+  const [titleSize, setTitleSize] = useState(page?.titleSize ?? 40);
+  const [titleAlign, setTitleAlign] = useState(page?.titleAlign ?? 'left');
+  const [colorPickerOpen, setColorPickerOpen] = useState(false);
+  const [fontFamily, setFontFamily] = useState(page?.fontFamily ?? '');
+  const [moreFontsOpen, setMoreFontsOpen] = useState(false);
+  const navigate = useNavigate();
+  const coverInputRef = useRef(null);
+  const editorWrapperRef = useRef(null);
+  const titleRef = useRef(null);
+  const saveTimer = useRef(null);
+
+  const editor = useCreateBlockNote({
+    schema,
+    initialContent: initialBlocks?.length ? initialBlocks : undefined,
+    uploadFile: async (file) => {
+      // Local-first: convert to data URL and embed inline.
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    },
+  });
+
+  useEffect(() => {
+    setTitle(page?.title ?? 'Untitled');
+    setIcon(page?.icon ?? null);
+    setCover(page?.cover ?? null);
+    setFontClass(page?.fontClass ?? '');
+    setTitleColor(page?.titleColor ?? '#e8e8e8');
+    setTitleSize(page?.titleSize ?? 40);
+    setTitleAlign(page?.titleAlign ?? 'left');
+    setFontFamily(page?.fontFamily ?? '');
+  }, [page?.id]);
+
+  // Ensure dynamic Google Font is loaded when chosen.
+  useEffect(() => {
+    if (fontFamily) ensureGoogleFont(fontFamily);
+  }, [fontFamily]);
+
+  const handleMoreFontSelect = useCallback((family) => {
+    setFontFamily(family);
+    setFontClass('');
+    updatePage(page.id, { fontFamily: family, fontClass: '' });
+    ensureGoogleFont(family);
+  }, [page?.id, updatePage]);
+
+  const handleTitleAlignChange = useCallback((align) => {
+    setTitleAlign(align);
+    updatePage(page.id, { titleAlign: align });
+  }, [page?.id, updatePage]);
+
+  const handleTitleSizeChange = useCallback((size) => {
+    setTitleSize(size);
+    updatePage(page.id, { titleSize: size });
+    requestAnimationFrame(() => {
+      if (titleRef.current) {
+        titleRef.current.style.height = 'auto';
+        titleRef.current.style.height = `${titleRef.current.scrollHeight}px`;
+      }
+    });
+  }, [page?.id, updatePage]);
+
+  // Resize title textarea whenever its content or font-size changes.
+  useEffect(() => {
+    if (titleRef.current) {
+      titleRef.current.style.height = 'auto';
+      titleRef.current.style.height = `${titleRef.current.scrollHeight}px`;
+    }
+  }, [title, titleSize]);
+
+  const debouncedSave = useCallback((blocks) => {
+    clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => saveContent(page.id, blocks), 600);
+  }, [page?.id, saveContent]);
+
+  const updateStats = useCallback(() => {
+    let words = 0, blocks = 0;
+    const visit = (bls) => {
+      for (const block of bls) {
+        if (['paragraph', 'heading', 'bulletListItem', 'numberedListItem', 'checkListItem'].includes(block.type)) {
+          blocks++;
+          const text = (block.content || []).filter((c) => c.type === 'text').map((c) => c.text).join(' ');
+          words += text.split(/\s+/).filter(Boolean).length;
+        }
+        if (block.children?.length) visit(block.children);
+      }
+    };
+    visit(editor.document || []);
+    setWordCount({ words, blocks });
+  }, [editor]);
+
+  useEffect(() => { updateStats(); }, [updateStats]);
+
+  // Used by the empty-page template picker — replaces all content
+  const applyTemplate = useCallback((template) => {
+    if (!template.blocks?.length) return;
+    editor.replaceBlocks(editor.document, template.blocks);
+    setShowTemplatePicker(false);
+  }, [editor]);
+
+  // Dismiss the picker — start with an empty canvas where slash commands and
+  // markdown shortcuts (``` for code, # for heading, /map for map, etc.) just work.
+  const startBlank = useCallback(() => {
+    setShowTemplatePicker(false);
+    editor.focus();
+  }, [editor]);
+
+  // Used by the slash menu — inserts after cursor position
+  const insertTemplate = useCallback((template) => {
+    if (!template.blocks?.length) return;
+    try {
+      const cursor = editor.getTextCursorPosition().block;
+      editor.insertBlocks(template.blocks, cursor, 'after');
+    } catch {}
+  }, [editor]);
+
+  const extractHeadings = useCallback(() => {
+    const result = [];
+    const visit = (blocks) => {
+      for (const block of blocks) {
+        if (block.type === 'heading') {
+          const text = (block.content || [])
+            .filter((c) => c.type === 'text')
+            .map((c) => c.text)
+            .join('');
+          if (text) result.push({ id: block.id, level: block.props?.level ?? 1, text });
+        }
+        if (block.children?.length) visit(block.children);
+      }
+    };
+    visit(editor.document || []);
+    setHeadings(result);
+  }, [editor]);
+
+  useEffect(() => { extractHeadings(); }, [extractHeadings]);
+
+  const scrollToHeading = useCallback((heading) => {
+    const el = document.querySelector(`[data-id="${heading.id}"]`);
+    if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
+    try {
+      const findBlock = (blocks, id) => {
+        for (const b of blocks) {
+          if (b.id === id) return b;
+          const f = b.children?.length ? findBlock(b.children, id) : null;
+          if (f) return f;
+        }
+        return null;
+      };
+      const block = findBlock(editor.document, heading.id);
+      if (block) editor.setTextCursorPosition(block, 'start');
+    } catch {}
+  }, [editor]);
+
+  const handleTitleChange = (e) => {
+    const val = e.target.value;
+    setTitle(val);
+    updatePage(page.id, { title: val || 'Untitled' });
+  };
+
+  const handleIconSelect = (emoji) => {
+    setIcon(emoji);
+    updatePage(page.id, { icon: emoji });
+  };
+
+  const handleCoverFile = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setCover(ev.target.result);
+      updatePage(page.id, { cover: ev.target.result });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveCover = () => {
+    setCover(null);
+    updatePage(page.id, { cover: null });
+  };
+
+  const handleFontChange = (e) => {
+    setFontClass(e.target.value);
+    setFontFamily('');
+    updatePage(page.id, { fontClass: e.target.value, fontFamily: '' });
+  };
+
+  const handleColorChange = (hex) => {
+    setTitleColor(hex);
+    updatePage(page.id, { titleColor: hex });
+  };
+
+  // Custom slash menu items
+  const getSlashItems = useCallback(async (query) => {
+    const defaults = getDefaultReactSlashMenuItems(editor);
+    const custom = [
+      {
+        title: 'Card',
+        subtext: 'Technique card — overview, steps, code',
+        aliases: ['card', 'technique', 'tactic'],
+        group: 'Custom blocks',
+        icon: <Shield className="h-4 w-4" />,
+        onItemClick: () => {
+          editor.insertBlocks(
+            [{ type: 'card', props: { data: '' } }],
+            editor.getTextCursorPosition().block,
+            'after'
+          );
+        },
+      },
+      {
+        title: 'Map',
+        subtext: 'Columns of techniques — kill-chain board',
+        aliases: ['map', 'board', 'kanban', 'columns', 'phases'],
+        group: 'Custom blocks',
+        icon: <Map className="h-4 w-4" />,
+        onItemClick: () => {
+          editor.insertBlocks(
+            [{ type: 'map', props: { mapId: '' } }],
+            editor.getTextCursorPosition().block,
+            'after'
+          );
+        },
+      },
+      {
+        title: 'Sub-page',
+        subtext: 'Create a child page and insert a link',
+        aliases: ['page', 'subpage', 'link'],
+        group: 'Custom blocks',
+        icon: <FileText className="h-4 w-4" />,
+        onItemClick: async () => {
+          if (!createPage) return;
+          const cursor = editor.getTextCursorPosition().block;
+          const newPage = await createPage({ title: 'Untitled', parentId: page.id });
+          editor.insertBlocks(
+            [{ type: 'pagelink', props: { pageId: newPage.id } }],
+            cursor,
+            'after'
+          );
+        },
+      },
+      ...TEMPLATES.map((tmpl) => ({
+        title: tmpl.name,
+        subtext: tmpl.description,
+        group: 'Templates',
+        icon: <span className="text-sm leading-none">{tmpl.icon}</span>,
+        onItemClick: () => insertTemplate(tmpl),
+      })),
+    ];
+    return filterSuggestionItems([...defaults, ...custom], query);
+  }, [editor, createPage, page?.id, insertTemplate]);
+
+  if (!page) return null;
+
+  const ancestors = getAncestors(page, allPages);
+  const editorFontStack = fontClass
+    ? getComputedStyle(document.documentElement).getPropertyValue('--app-font') || ''
+    : '';
+
+  return (
+    <div className="flex min-h-screen flex-col bg-[#1f1f1f]">
+      {/* Breadcrumbs bar */}
+      <div className="sticky top-0 z-10 flex h-[42px] flex-shrink-0 items-center border-b border-[#262626] bg-[#1f1f1f]/95 px-6 backdrop-blur-sm">
+        <div className="flex min-w-0 flex-1 items-center gap-1 text-[12.5px] text-[#9a9a9a]">
+          <Link to="/" className="rounded px-1.5 py-0.5 transition-colors hover:bg-white/[0.045] hover:text-[#e8e8e8]">
+            Home
+          </Link>
+          {ancestors.map((ancestor) => (
+            <React.Fragment key={ancestor.id}>
+              <ChevronRight className="h-3 w-3 flex-shrink-0 text-[#6e6e6e]" />
+              <Link
+                to={`/page/${ancestor.id}`}
+                className="max-w-[140px] truncate rounded px-1.5 py-0.5 transition-colors hover:bg-white/[0.045] hover:text-[#e8e8e8]"
+              >
+                {ancestor.icon && <span className="mr-1">{renderIcon(ancestor.icon)}</span>}
+                {ancestor.title || 'Untitled'}
+              </Link>
+            </React.Fragment>
+          ))}
+          <ChevronRight className="h-3 w-3 flex-shrink-0 text-[#6e6e6e]" />
+          <button
+            type="button"
+            onClick={() => {
+              const el = titleRef.current;
+              if (!el) return;
+              el.focus();
+              // Caret at end so they can keep typing, or select-all to overwrite.
+              const len = el.value.length;
+              try { el.setSelectionRange(len, len); } catch {}
+            }}
+            className="truncate rounded px-1.5 py-0.5 text-left text-[#e8e8e8] transition-colors hover:bg-white/[0.045]"
+            title="Click to rename"
+          >
+            {icon && <span className="mr-1">{renderIcon(icon)}</span>}
+            {title || 'Untitled'}
+          </button>
+        </div>
+        <div className="flex flex-shrink-0 items-center gap-1">
+          <button
+            onClick={() => setShowToc((v) => !v)}
+            className={`flex items-center gap-1.5 rounded px-2 py-1 text-[12px] transition-colors ${
+              showToc ? 'bg-white/[0.06] text-[#e8e8e8]' : 'text-[#9a9a9a] hover:bg-white/[0.045] hover:text-[#e8e8e8]'
+            }`}
+            title="Outline"
+          >
+            <List className="h-3.5 w-3.5" />
+          </button>
+          <button
+            onClick={() => setShowSettings((v) => !v)}
+            className={`flex items-center gap-1.5 rounded px-2 py-1 text-[12px] transition-colors ${
+              showSettings ? 'bg-white/[0.06] text-[#e8e8e8]' : 'text-[#9a9a9a] hover:bg-white/[0.045] hover:text-[#e8e8e8]'
+            }`}
+            title="Page style"
+          >
+            <Type className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </div>
+
+      {/* Cover */}
+      {cover && (
+        <div
+          className="group relative h-[200px] w-full flex-shrink-0 bg-cover bg-center"
+          style={{ backgroundImage: `url(${cover})` }}
+        >
+          <div className="absolute inset-0 bg-black/15" />
+          <button
+            onClick={handleRemoveCover}
+            className="absolute right-6 top-4 flex items-center gap-1.5 rounded-md bg-black/55 px-2.5 py-1.5 text-[11.5px] text-white opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100"
+          >
+            <X className="h-3 w-3" /> Remove cover
+          </button>
+        </div>
+      )}
+
+      {/* Page header */}
+      <div className={`mx-auto w-full max-w-[1280px] px-16 ${cover ? 'pt-6' : 'pt-12'}`}>
+        {/* Icon */}
+        {icon && (
+          <div className="mb-3 inline-block">
+            <button
+              onClick={(e) => setIconAnchor(e.currentTarget)}
+              className="text-[64px] leading-none transition-opacity hover:opacity-70"
+              title="Change icon"
+            >
+              {renderIcon(icon)}
+            </button>
+          </div>
+        )}
+
+        {/* Add controls (icon / cover) */}
+        <div className="mb-2 flex items-center gap-1 opacity-0 transition-opacity duration-150 hover:opacity-100 focus-within:opacity-100">
+          {!icon && (
+            <button
+              onClick={(e) => setIconAnchor(e.currentTarget)}
+              className="flex items-center gap-1.5 rounded px-1.5 py-1 text-[12px] text-[#7a7a7a] transition-colors hover:bg-white/[0.045] hover:text-[#c4c4c4]"
+            >
+              <Smile className="h-3.5 w-3.5" /> Add icon
+            </button>
+          )}
+          {!cover && (
+            <button
+              onClick={() => coverInputRef.current?.click()}
+              className="flex items-center gap-1.5 rounded px-1.5 py-1 text-[12px] text-[#7a7a7a] transition-colors hover:bg-white/[0.045] hover:text-[#c4c4c4]"
+            >
+              <ImageIcon className="h-3.5 w-3.5" /> Add cover
+            </button>
+          )}
+        </div>
+
+        {iconAnchor && (
+          <IconPicker
+            anchorEl={iconAnchor}
+            onSelect={handleIconSelect}
+            onClose={() => setIconAnchor(null)}
+          />
+        )}
+
+        <input type="file" accept="image/*" className="hidden" ref={coverInputRef} onChange={handleCoverFile} />
+
+        {/* Per-page style settings. The font dropdown sets the page's *default*
+            font (Google Docs' "Document defaults"). Individual selections can
+            still override it via right-click → Font in the editor body. */}
+        {showSettings && (
+          <div className="mb-5 flex flex-wrap items-center gap-4 rounded-lg border border-[#2a2a2a] bg-[#232323] px-4 py-3">
+            <div className="flex items-center gap-2">
+              <Type className="h-3.5 w-3.5 text-[#7a7a7a]" />
+              <select
+                value={fontFamily ? '' : fontClass}
+                onChange={handleFontChange}
+                className="rounded-md border border-[#2a2a2a] bg-[#1a1a1a] px-2 py-1 text-[12px] text-[#e8e8e8] outline-none"
+              >
+                <option value="">Default</option>
+                {titleFontOptions.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+              <button
+                onClick={() => setMoreFontsOpen(true)}
+                className="rounded-md border border-[#2a2a2a] bg-[#1a1a1a] px-2 py-1 text-[12px] text-[#c4c4c4] transition-colors hover:border-[#3a3a3a] hover:text-[#e8e8e8]"
+                title="Browse Google Fonts"
+              >
+                {fontFamily ? <span style={{ fontFamily: buildStack(fontFamily, CATALOG_BY_FAMILY[fontFamily] || 'sans') }}>{fontFamily}</span> : 'More fonts…'}
+              </button>
+            </div>
+            <div className="relative flex items-center gap-2">
+              <Palette className="h-3.5 w-3.5 text-[#7a7a7a]" />
+              <label className="text-[12px] text-[#7a7a7a]">Title color</label>
+              <button
+                onClick={() => setColorPickerOpen((v) => !v)}
+                className="h-6 w-10 rounded border border-[#2a2a2a] transition-transform hover:scale-105"
+                style={{ background: titleColor }}
+                title="Choose color"
+              />
+              {colorPickerOpen && (
+                <div className="absolute left-0 top-full z-50 mt-1">
+                  <ColorPickerPopover
+                    value={titleColor}
+                    onChange={handleColorChange}
+                    onClose={() => setColorPickerOpen(false)}
+                  />
+                </div>
+              )}
+            </div>
+            <div className="flex items-center gap-1 rounded-md border border-[#2a2a2a] bg-[#1a1a1a] p-0.5">
+              <button
+                onClick={() => handleTitleAlignChange('left')}
+                className={`flex h-6 w-7 items-center justify-center rounded transition-colors ${
+                  titleAlign === 'left' ? 'bg-white/[0.08] text-[#e8e8e8]' : 'text-[#7a7a7a] hover:text-[#c4c4c4]'
+                }`}
+                title="Align title left"
+              >
+                <AlignLeft className="h-3.5 w-3.5" />
+              </button>
+              <button
+                onClick={() => handleTitleAlignChange('center')}
+                className={`flex h-6 w-7 items-center justify-center rounded transition-colors ${
+                  titleAlign === 'center' ? 'bg-white/[0.08] text-[#e8e8e8]' : 'text-[#7a7a7a] hover:text-[#c4c4c4]'
+                }`}
+                title="Align title center"
+              >
+                <AlignCenter className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        <MoreFontsModal
+          open={moreFontsOpen}
+          value={fontFamily}
+          onSelect={handleMoreFontSelect}
+          onClose={() => setMoreFontsOpen(false)}
+        />
+
+        {/* Title — textarea so long titles wrap onto multiple lines.
+            Subtle background on hover/focus makes it visually obvious this
+            is interactive (otherwise it reads as static page heading). */}
+        <textarea
+          ref={titleRef}
+          data-page-title
+          value={title}
+          onChange={handleTitleChange}
+          placeholder="Untitled"
+          rows={1}
+          className={`mb-1 w-full resize-none overflow-hidden rounded bg-transparent font-bold leading-tight tracking-tight placeholder-[#3a3a3a] outline-none transition-colors hover:bg-white/[0.025] focus:bg-white/[0.04] ${fontFamily ? '' : fontClass}`}
+          style={{
+            fontFamily: fontFamily
+              ? buildStack(fontFamily, CATALOG_BY_FAMILY[fontFamily] || 'sans')
+              : (fontClass ? undefined : 'var(--app-font, Inter, sans-serif)'),
+            color: titleColor,
+            fontSize: `${titleSize}px`,
+            textAlign: titleAlign,
+          }}
+          onInput={(e) => {
+            e.currentTarget.style.height = 'auto';
+            e.currentTarget.style.height = `${e.currentTarget.scrollHeight}px`;
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') { e.preventDefault(); editor.focus(); }
+          }}
+        />
+      </div>
+
+      {/* Template picker — shown on empty pages */}
+      {showTemplatePicker && (
+        <div className="mx-auto w-full max-w-[1280px] px-16 pb-4 pt-4">
+          <div className="rounded-xl border border-[#2a2a2a] bg-[#232323] p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <span className="text-[12.5px] font-medium text-[#c4c4c4]">Start with a template</span>
+              <button
+                onClick={() => setShowTemplatePicker(false)}
+                className="flex h-6 w-6 items-center justify-center rounded text-[#7a7a7a] transition-colors hover:bg-white/[0.05] hover:text-[#c4c4c4]"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                onClick={startBlank}
+                className="flex flex-col items-start gap-1 rounded-lg border border-[#2a2a2a] bg-[#1f1f1f] p-3 text-left transition-colors hover:border-[#3a3a3a] hover:bg-[#272727]"
+              >
+                <FileCode className="h-[18px] w-[18px] text-[#9a9a9a]" strokeWidth={1.7} />
+                <span className="mt-1 text-[12.5px] font-medium text-[#e8e8e8]">Blank</span>
+                <span className="text-[11px] leading-snug text-[#7a7a7a]">Type / for commands</span>
+              </button>
+              {TEMPLATES.map((tmpl) => (
+                <button
+                  key={tmpl.id}
+                  onClick={() => applyTemplate(tmpl)}
+                  className="flex flex-col items-start gap-1 rounded-lg border border-[#2a2a2a] bg-[#1f1f1f] p-3 text-left transition-colors hover:border-[#3a3a3a] hover:bg-[#272727]"
+                >
+                  <span className="text-[18px] leading-none">{tmpl.icon}</span>
+                  <span className="mt-1 text-[12.5px] font-medium text-[#e8e8e8]">{tmpl.name}</span>
+                  <span className="text-[11px] leading-snug text-[#7a7a7a]">{tmpl.description}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* BlockNote editor — aligned with the title's px-16 so content and title sit on the same left edge.
+          The wrapper carries the page's chosen default font (fontClass or fontFamily); selections can
+          override it via the right-click Font picker (FontFamily inline style on the run). */}
+      <div
+        ref={editorWrapperRef}
+        className={`blocknote-wrapper mx-auto w-full max-w-[1280px] flex-1 px-16 pb-32 ${fontFamily ? '' : fontClass}`}
+        style={
+          fontFamily
+            ? { fontFamily: buildStack(fontFamily, CATALOG_BY_FAMILY[fontFamily] || 'sans') }
+            : (fontClass ? undefined : { fontFamily: 'var(--app-font, Inter, sans-serif)' })
+        }
+      >
+        <BlockNoteView
+          editor={editor}
+          theme="dark"
+          onChange={() => { debouncedSave(editor.document); extractHeadings(); updateStats(); }}
+        >
+          <SuggestionMenuController triggerCharacter="/" getItems={getSlashItems} />
+        </BlockNoteView>
+      </div>
+      <EditorContextMenu
+        editor={editor}
+        containerRef={editorWrapperRef}
+        titleRef={titleRef}
+        titleSize={titleSize}
+        onTitleSizeChange={handleTitleSizeChange}
+      />
+
+      {/* Word count status bar */}
+      <div className="fixed bottom-3 right-4 z-20 text-[11px] text-[#5a5a5a] select-none">
+        {wordCount.words > 0 && `${wordCount.words.toLocaleString()} words · ${wordCount.blocks} blocks`}
+      </div>
+
+      {/* Table of Contents */}
+      {showToc && (
+        <div className="fixed right-0 top-[42px] z-30 flex h-[calc(100%-42px)] w-56 flex-col border-l border-[#262626] bg-[#1f1f1f]/95 px-4 py-5 backdrop-blur-sm">
+          <div className="mb-3 flex items-center justify-between">
+            <span className="text-[11px] font-medium uppercase tracking-wider text-[#7a7a7a]">On this page</span>
+            <button
+              onClick={() => setShowToc(false)}
+              className="flex h-5 w-5 items-center justify-center rounded text-[#7a7a7a] transition-colors hover:bg-white/[0.05] hover:text-[#c4c4c4]"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+          {headings.length === 0 ? (
+            <p className="text-[12px] text-[#5a5a5a]">No headings yet</p>
+          ) : (
+            <div className="space-y-0.5 overflow-y-auto">
+              {headings.map((h) => (
+                <button
+                  key={h.id}
+                  onClick={() => scrollToHeading(h)}
+                  style={{ paddingLeft: `${(h.level - 1) * 10 + 8}px` }}
+                  className="block w-full truncate rounded py-1 pr-2 text-left text-[12.5px] text-[#9a9a9a] transition-colors hover:bg-white/[0.045] hover:text-[#e8e8e8]"
+                >
+                  {h.text}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Markdown page editor ─────────────────────────────────────────────────────
+
+function MarkdownPageEditor({ page, allPages = [], initialBlocks, updatePage, saveContent }) {
+  const [title, setTitle]       = useState(page?.title ?? 'Untitled');
+  const [icon, setIcon]         = useState(page?.icon ?? null);
+  const [cover, setCover]       = useState(page?.cover ?? null);
+  const [fontClass, setFontClass] = useState(page?.fontClass ?? '');
+  const [titleColor, setTitleColor] = useState(page?.titleColor ?? '#e8e8e8');
+  const [titleSize, setTitleSize] = useState(page?.titleSize ?? 40);
+  const [titleAlign, setTitleAlign] = useState(page?.titleAlign ?? 'left');
+  const [colorPickerOpen, setColorPickerOpen] = useState(false);
+  const [fontFamily, setFontFamily] = useState(page?.fontFamily ?? '');
+  const [moreFontsOpen, setMoreFontsOpen] = useState(false);
+  const [iconAnchor, setIconAnchor] = useState(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const [text, setText] = useState(typeof initialBlocks === 'string' ? initialBlocks : '');
+  const coverInputRef = useRef(null);
+  const titleRef = useRef(null);
+  const saveTimer = useRef(null);
+
+  useEffect(() => {
+    setTitle(page?.title ?? 'Untitled');
+    setIcon(page?.icon ?? null);
+    setCover(page?.cover ?? null);
+    setFontClass(page?.fontClass ?? '');
+    setTitleColor(page?.titleColor ?? '#e8e8e8');
+    setTitleSize(page?.titleSize ?? 40);
+    setTitleAlign(page?.titleAlign ?? 'left');
+    setFontFamily(page?.fontFamily ?? '');
+  }, [page?.id]);
+
+  useEffect(() => {
+    if (fontFamily) ensureGoogleFont(fontFamily);
+  }, [fontFamily]);
+
+  const handleMoreFontSelect = useCallback((family) => {
+    setFontFamily(family);
+    setFontClass('');
+    updatePage(page.id, { fontFamily: family, fontClass: '' });
+    ensureGoogleFont(family);
+  }, [page?.id, updatePage]);
+
+  const handleTitleAlignChange = useCallback((align) => {
+    setTitleAlign(align);
+    updatePage(page.id, { titleAlign: align });
+  }, [page?.id, updatePage]);
+
+  const handleTitleSizeChange = useCallback((size) => {
+    setTitleSize(size);
+    updatePage(page.id, { titleSize: size });
+    requestAnimationFrame(() => {
+      if (titleRef.current) {
+        titleRef.current.style.height = 'auto';
+        titleRef.current.style.height = `${titleRef.current.scrollHeight}px`;
+      }
+    });
+  }, [page?.id, updatePage]);
+
+  useEffect(() => {
+    if (titleRef.current) {
+      titleRef.current.style.height = 'auto';
+      titleRef.current.style.height = `${titleRef.current.scrollHeight}px`;
+    }
+  }, [title, titleSize]);
+
+  const handleTextChange = (next) => {
+    setText(next);
+    clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => saveContent(page.id, next), 500);
+  };
+
+  const handleTitleChange = (e) => {
+    const val = e.target.value;
+    setTitle(val);
+    updatePage(page.id, { title: val || 'Untitled' });
+  };
+
+  const handleIconSelect = (emoji) => {
+    setIcon(emoji);
+    updatePage(page.id, { icon: emoji });
+  };
+
+  const handleCoverFile = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setCover(ev.target.result);
+      updatePage(page.id, { cover: ev.target.result });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveCover = () => {
+    setCover(null);
+    updatePage(page.id, { cover: null });
+  };
+
+  const handleFontChange = (e) => {
+    setFontClass(e.target.value);
+    setFontFamily('');
+    updatePage(page.id, { fontClass: e.target.value, fontFamily: '' });
+  };
+
+  const handleColorChange = (hex) => {
+    setTitleColor(hex);
+    updatePage(page.id, { titleColor: hex });
+  };
+
+  if (!page) return null;
+
+  const ancestors = getAncestors(page, allPages);
+  const wordCount = (text || '').split(/\s+/).filter(Boolean).length;
+
+  return (
+    <div className="flex min-h-screen flex-col bg-[#1f1f1f]">
+      {/* Breadcrumbs bar */}
+      <div className="sticky top-0 z-10 flex h-[42px] flex-shrink-0 items-center border-b border-[#262626] bg-[#1f1f1f]/95 px-6 backdrop-blur-sm">
+        <div className="flex min-w-0 flex-1 items-center gap-1 text-[12.5px] text-[#9a9a9a]">
+          <Link to="/" className="rounded px-1.5 py-0.5 transition-colors hover:bg-white/[0.045] hover:text-[#e8e8e8]">
+            Home
+          </Link>
+          {ancestors.map((ancestor) => (
+            <React.Fragment key={ancestor.id}>
+              <ChevronRight className="h-3 w-3 flex-shrink-0 text-[#6e6e6e]" />
+              <Link
+                to={`/page/${ancestor.id}`}
+                className="max-w-[140px] truncate rounded px-1.5 py-0.5 transition-colors hover:bg-white/[0.045] hover:text-[#e8e8e8]"
+              >
+                {ancestor.icon && <span className="mr-1">{renderIcon(ancestor.icon)}</span>}
+                {ancestor.title || 'Untitled'}
+              </Link>
+            </React.Fragment>
+          ))}
+          <ChevronRight className="h-3 w-3 flex-shrink-0 text-[#6e6e6e]" />
+          <button
+            type="button"
+            onClick={() => {
+              const el = titleRef.current;
+              if (!el) return;
+              el.focus();
+              const len = el.value.length;
+              try { el.setSelectionRange(len, len); } catch {}
+            }}
+            className="truncate rounded px-1.5 py-0.5 text-left text-[#e8e8e8] transition-colors hover:bg-white/[0.045]"
+            title="Click to rename"
+          >
+            {icon && <span className="mr-1">{renderIcon(icon)}</span>}
+            {title || 'Untitled'}
+          </button>
+          <span className="ml-1 rounded bg-white/[0.05] px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-[#7a7a7a]">
+            md
+          </span>
+        </div>
+        <div className="flex flex-shrink-0 items-center gap-1">
+          <button
+            onClick={() => setShowSettings((v) => !v)}
+            className={`flex items-center gap-1.5 rounded px-2 py-1 text-[12px] transition-colors ${
+              showSettings ? 'bg-white/[0.06] text-[#e8e8e8]' : 'text-[#9a9a9a] hover:bg-white/[0.045] hover:text-[#e8e8e8]'
+            }`}
+            title="Page style"
+          >
+            <Type className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </div>
+
+      {/* Cover */}
+      {cover && (
+        <div
+          className="group relative h-[200px] w-full flex-shrink-0 bg-cover bg-center"
+          style={{ backgroundImage: `url(${cover})` }}
+        >
+          <div className="absolute inset-0 bg-black/15" />
+          <button
+            onClick={handleRemoveCover}
+            className="absolute right-6 top-4 flex items-center gap-1.5 rounded-md bg-black/55 px-2.5 py-1.5 text-[11.5px] text-white opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100"
+          >
+            <X className="h-3 w-3" /> Remove cover
+          </button>
+        </div>
+      )}
+
+      {/* Page header */}
+      <div className={`mx-auto w-full max-w-[1280px] px-16 ${cover ? 'pt-6' : 'pt-12'}`}>
+        {icon && (
+          <div className="mb-3 inline-block">
+            <button
+              onClick={(e) => setIconAnchor(e.currentTarget)}
+              className="text-[64px] leading-none transition-opacity hover:opacity-70"
+              title="Change icon"
+            >
+              {renderIcon(icon)}
+            </button>
+          </div>
+        )}
+
+        <div className="mb-2 flex items-center gap-1 opacity-0 transition-opacity duration-150 hover:opacity-100 focus-within:opacity-100">
+          {!icon && (
+            <button
+              onClick={(e) => setIconAnchor(e.currentTarget)}
+              className="flex items-center gap-1.5 rounded px-1.5 py-1 text-[12px] text-[#7a7a7a] transition-colors hover:bg-white/[0.045] hover:text-[#c4c4c4]"
+            >
+              <Smile className="h-3.5 w-3.5" /> Add icon
+            </button>
+          )}
+          {!cover && (
+            <button
+              onClick={() => coverInputRef.current?.click()}
+              className="flex items-center gap-1.5 rounded px-1.5 py-1 text-[12px] text-[#7a7a7a] transition-colors hover:bg-white/[0.045] hover:text-[#c4c4c4]"
+            >
+              <ImageIcon className="h-3.5 w-3.5" /> Add cover
+            </button>
+          )}
+        </div>
+
+        {iconAnchor && (
+          <IconPicker
+            anchorEl={iconAnchor}
+            onSelect={handleIconSelect}
+            onClose={() => setIconAnchor(null)}
+          />
+        )}
+
+        <input type="file" accept="image/*" className="hidden" ref={coverInputRef} onChange={handleCoverFile} />
+
+        {showSettings && (
+          <div className="mb-5 flex flex-wrap items-center gap-4 rounded-lg border border-[#2a2a2a] bg-[#232323] px-4 py-3">
+            <div className="flex items-center gap-2">
+              <Type className="h-3.5 w-3.5 text-[#7a7a7a]" />
+              <select
+                value={fontFamily ? '' : fontClass}
+                onChange={handleFontChange}
+                className="rounded-md border border-[#2a2a2a] bg-[#1a1a1a] px-2 py-1 text-[12px] text-[#e8e8e8] outline-none"
+              >
+                <option value="">Default font</option>
+                {titleFontOptions.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+              <button
+                onClick={() => setMoreFontsOpen(true)}
+                className="rounded-md border border-[#2a2a2a] bg-[#1a1a1a] px-2 py-1 text-[12px] text-[#c4c4c4] transition-colors hover:border-[#3a3a3a] hover:text-[#e8e8e8]"
+                title="Browse Google Fonts"
+              >
+                {fontFamily ? <span style={{ fontFamily: buildStack(fontFamily, CATALOG_BY_FAMILY[fontFamily] || 'sans') }}>{fontFamily}</span> : 'More fonts…'}
+              </button>
+            </div>
+            <div className="relative flex items-center gap-2">
+              <Palette className="h-3.5 w-3.5 text-[#7a7a7a]" />
+              <label className="text-[12px] text-[#7a7a7a]">Title color</label>
+              <button
+                onClick={() => setColorPickerOpen((v) => !v)}
+                className="h-6 w-10 rounded border border-[#2a2a2a] transition-transform hover:scale-105"
+                style={{ background: titleColor }}
+                title="Choose color"
+              />
+              {colorPickerOpen && (
+                <div className="absolute left-0 top-full z-50 mt-1">
+                  <ColorPickerPopover
+                    value={titleColor}
+                    onChange={handleColorChange}
+                    onClose={() => setColorPickerOpen(false)}
+                  />
+                </div>
+              )}
+            </div>
+            <div className="flex items-center gap-1 rounded-md border border-[#2a2a2a] bg-[#1a1a1a] p-0.5">
+              <button
+                onClick={() => handleTitleAlignChange('left')}
+                className={`flex h-6 w-7 items-center justify-center rounded transition-colors ${
+                  titleAlign === 'left' ? 'bg-white/[0.08] text-[#e8e8e8]' : 'text-[#7a7a7a] hover:text-[#c4c4c4]'
+                }`}
+                title="Align title left"
+              >
+                <AlignLeft className="h-3.5 w-3.5" />
+              </button>
+              <button
+                onClick={() => handleTitleAlignChange('center')}
+                className={`flex h-6 w-7 items-center justify-center rounded transition-colors ${
+                  titleAlign === 'center' ? 'bg-white/[0.08] text-[#e8e8e8]' : 'text-[#7a7a7a] hover:text-[#c4c4c4]'
+                }`}
+                title="Align title center"
+              >
+                <AlignCenter className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        <MoreFontsModal
+          open={moreFontsOpen}
+          value={fontFamily}
+          onSelect={handleMoreFontSelect}
+          onClose={() => setMoreFontsOpen(false)}
+        />
+
+        <textarea
+          ref={titleRef}
+          data-page-title
+          value={title}
+          onChange={handleTitleChange}
+          placeholder="Untitled"
+          rows={1}
+          className={`mb-4 w-full resize-none overflow-hidden rounded bg-transparent font-bold leading-tight tracking-tight placeholder-[#3a3a3a] outline-none transition-colors hover:bg-white/[0.025] focus:bg-white/[0.04] ${fontFamily ? '' : fontClass}`}
+          style={{
+            fontFamily: fontFamily
+              ? buildStack(fontFamily, CATALOG_BY_FAMILY[fontFamily] || 'sans')
+              : (fontClass ? undefined : 'var(--app-font, Inter, sans-serif)'),
+            color: titleColor,
+            fontSize: `${titleSize}px`,
+            textAlign: titleAlign,
+          }}
+          onInput={(e) => {
+            e.currentTarget.style.height = 'auto';
+            e.currentTarget.style.height = `${e.currentTarget.scrollHeight}px`;
+          }}
+        />
+      </div>
+
+      {/* Markdown body */}
+      <div className="mx-auto w-full max-w-[1280px] flex-1 px-12 pb-32">
+        <MarkdownEditor
+          value={text}
+          onChange={handleTextChange}
+          autoFocus
+          initialMode="edit"
+          minHeight={500}
+          placeholder="Type / or write markdown — # heading, **bold**, `code`, - list"
+        />
+      </div>
+
+      {/* Right-click → title size (no inline editor menu in markdown mode) */}
+      <EditorContextMenu
+        editor={null}
+        titleRef={titleRef}
+        titleSize={titleSize}
+        onTitleSizeChange={handleTitleSizeChange}
+      />
+
+      {/* Word count */}
+      <div className="fixed bottom-3 right-4 z-20 text-[11px] text-[#5a5a5a] select-none">
+        {wordCount > 0 && `${wordCount.toLocaleString()} word${wordCount !== 1 ? 's' : ''}`}
+      </div>
+    </div>
+  );
+}
