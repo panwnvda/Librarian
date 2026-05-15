@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Check } from 'lucide-react';
 import { titleFontOptions } from '@/lib/pageStyleOptions';
 import { FONT_STACKS } from '@/hooks/useGlobalFont';
@@ -57,7 +58,13 @@ export default function SizePicker({
     ? (titleFontOptions.find((o) => o.value === font)?.label ?? 'Default')
     : 'Default (inherit)';
 
-  return (
+  // Portal to document.body so `position: fixed` resolves against the
+  // viewport. Without this, the picker is rendered as a descendant of
+  // BlockNote's block-outer divs which carry transform/will-change
+  // properties — those create new containing blocks for fixed-positioned
+  // descendants, which is why the leftmost column's popover appeared
+  // clipped off the left edge.
+  const popover = (
     <div
       ref={rootRef}
       className="fixed z-[2200] w-44 rounded-lg border border-[#373737] bg-[#252525] py-1 shadow-2xl"
@@ -153,4 +160,5 @@ export default function SizePicker({
       </div>
     </div>
   );
+  return createPortal(popover, document.body);
 }

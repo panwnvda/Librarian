@@ -494,7 +494,7 @@ function Column({ column, onUpdate, onDelete, compact = false }) {
               if (e.key === 'Escape') { setTitleDraft(column.title); setRenaming(false); }
             }}
             onMouseDown={(e) => e.stopPropagation()}
-            className="min-w-0 w-full bg-transparent text-center font-bold uppercase tracking-[0.18em] outline-none"
+            className="min-w-0 w-full bg-transparent text-center font-bold tracking-wide outline-none"
             style={{ color: palette.text, fontFamily: fontStack, fontSize: `${titleSize}px` }}
           />
         ) : (
@@ -505,7 +505,7 @@ function Column({ column, onUpdate, onDelete, compact = false }) {
               e.preventDefault();
               setSizePickerAt({ x: e.clientX, y: e.clientY });
             }}
-            className="min-w-0 w-full text-center font-bold uppercase leading-tight tracking-[0.18em]"
+            className="min-w-0 w-full text-center font-bold leading-tight tracking-wide"
             style={{ color: palette.text, fontFamily: fontStack, fontSize: `${titleSize}px` }}
             title="Right-click to change size or font"
           >
