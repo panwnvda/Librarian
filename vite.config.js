@@ -2,6 +2,22 @@ import path from 'node:path'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
+// Strip `crossorigin` attributes from the built index.html. Vite emits them
+// on every <script type="module"> and <link rel="modulepreload"> tag, which
+// is the correct behaviour over http(s) but silently breaks Electron's
+// production build: Chromium loads dist/index.html via `file://`, treats
+// the requested chunks as opaque-origin CORS requests, and refuses them —
+// the result is a blank/gray app window with no visible error. Stripping
+// the attribute makes the browser fetch the modules as same-origin file
+// URLs the way Electron expects.
+const stripCrossorigin = {
+  name: 'strip-crossorigin-for-electron',
+  enforce: 'post',
+  transformIndexHtml(html) {
+    return html.replace(/\s+crossorigin(?==|>|\s)/g, '');
+  },
+};
+
 // Split the main bundle into vendor chunks so the browser can parse
 // them in parallel and cache them independently across deploys. Pure
 // build-output config — runtime behavior is unchanged (same modules
@@ -30,7 +46,7 @@ function manualChunks(id) {
 
 export default defineConfig({
   base: './',
-  plugins: [react()],
+  plugins: [react(), stripCrossorigin],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

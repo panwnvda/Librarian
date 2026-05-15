@@ -42,6 +42,8 @@ library-packs/
 # Local tool artifacts — not part of the project
 .claude/
 .codex
+# Local shell helper that resumes a specific Claude session — machine-specific.
+claude
 *.suo
 *.ntvs*
 *.njsproj
