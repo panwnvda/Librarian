@@ -19,9 +19,9 @@
     "typecheck": "tsc -p ./jsconfig.json",
     "preview": "vite preview",
     "electron:dev": "concurrently -k -n VITE,ELECTRON -c cyan,green \"vite\" \"wait-on http://localhost:5173 && electron .\"",
-    "build:linux": "vite build && electron-builder --linux",
-    "build:win": "vite build && electron-builder --win",
-    "build:all": "vite build && electron-builder --linux --win"
+    "build:linux": "vite build && electron-builder --linux --publish=never",
+    "build:win": "vite build && electron-builder --win --publish=never",
+    "build:all": "vite build && electron-builder --linux --win --publish=never"
   },
   "build": {
     "appId": "com.librarian.app",
