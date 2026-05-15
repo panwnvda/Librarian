@@ -138,6 +138,11 @@ const FontSizeMenu = memo(({ onPick }) => {
 });
 
 // Text-color / highlight-color button — opens the full ColorPickerPopover.
+// onMouseDown is preventDefaulted everywhere the user could click so the
+// textarea keeps focus + selection while interacting with the picker —
+// otherwise clicking the button blurs the textarea, the selection is lost,
+// and the colour ends up wrapping the literal word "text" at cursor 0
+// instead of whatever the user had highlighted.
 const ColorBtn = memo(({ label, title, onPick, kind }) => {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -148,9 +153,10 @@ const ColorBtn = memo(({ label, title, onPick, kind }) => {
     return () => document.removeEventListener('mousedown', h);
   }, [open]);
   return (
-    <div className="relative" ref={ref}>
+    <div className="relative" ref={ref} onMouseDown={(e) => e.preventDefault()}>
       <button
         type="button"
+        onMouseDown={(e) => e.preventDefault()}
         onClick={() => setOpen((v) => !v)}
         title={title}
         className="flex h-6 items-center justify-center rounded px-2 text-[12px] text-[#9a9a9a] hover:bg-white/[0.05] hover:text-[#e8e8e8]"
@@ -158,7 +164,10 @@ const ColorBtn = memo(({ label, title, onPick, kind }) => {
         <span className={kind === 'text' ? 'font-bold underline decoration-2 underline-offset-2' : 'leading-none'}>{label}</span>
       </button>
       {open && (
-        <div className="absolute left-0 top-full z-50 mt-1">
+        <div
+          className="absolute left-0 top-full z-50 mt-1"
+          onMouseDown={(e) => e.preventDefault()}
+        >
           <ColorPickerPopover
             value="#5b86c8"
             onChange={(hex) => { onPick(hex); setOpen(false); }}
@@ -198,7 +207,18 @@ export default function CardEditorPage({ card, onSave, onCancel }) {
 
   const textareaRef = useRef(null);
 
+  // Seed state from `card` exactly once, on mount. CardEditorPage is
+  // unmounted/remounted by its parent (CardBlockInner) whenever `editing`
+  // toggles, so a single Edit click = one fresh mount with one seed. We
+  // deliberately DON'T re-seed on subsequent re-renders — auto-save updates
+  // the parent block which triggers a re-render with the same logical card,
+  // and re-seeding would clobber the user's in-flight edits + jump the cursor.
+  // Imported cards (from .library import) have no `id` field, so a
+  // ref-equality / id-based guard doesn't work — we just gate on mount.
+  const hasSeededRef = useRef(false);
   useEffect(() => {
+    if (hasSeededRef.current) return;
+    hasSeededRef.current = true;
     if (card) {
       setTitle(card.title || '');
       setSubtitle(card.subtitle || '');
@@ -211,10 +231,6 @@ export default function CardEditorPage({ card, onSave, onCancel }) {
       setBody(BLANK_BODY); setSelectedColor('cyan'); setSelectedFont('');
     }
     setDirty(false);
-    // Anchor the cursor + scroll at the top of the body whenever the card
-    // changes. Without this, autoFocus + the auto-grow textarea would scroll
-    // the page to the end of the scaffold (the user reported "auto-jumps to
-    // the Technical Notes section" — same root cause).
     requestAnimationFrame(() => {
       const el = textareaRef.current;
       if (el) {
@@ -223,7 +239,7 @@ export default function CardEditorPage({ card, onSave, onCancel }) {
         el.scrollIntoView?.({ block: 'start', inline: 'nearest' });
       }
     });
-  }, [card]);
+  }, []);
 
   // ── Text helpers ──────────────────────────────────────────────────────────
   const insertWrap = useCallback((before, after = before) => {
@@ -276,21 +292,36 @@ export default function CardEditorPage({ card, onSave, onCancel }) {
     requestAnimationFrame(() => { el.focus(); el.setSelectionRange(s + block.length, s + block.length); });
   }, [body]);
 
+  // The textarea's selectionStart/End can get clobbered (set to 0/0) when the
+  // user clicks a popover button — even with mousedown preventDefault, some
+  // browsers reset selection on focus changes. We mirror the last known good
+  // selection into a ref via onSelect on the textarea and read from there.
+  const savedSelectionRef = useRef({ start: 0, end: 0 });
+  const captureSelection = useCallback(() => {
+    const el = textareaRef.current;
+    if (el && document.activeElement === el) {
+      savedSelectionRef.current = { start: el.selectionStart, end: el.selectionEnd };
+    }
+  }, []);
+
   // Wrap the selection (or a placeholder if empty) in an HTML span with the
-  // given style attribute. Markdown allows raw HTML, so this round-trips
-  // through cardMarkdown and renders in the preview / saved card.
+  // given style attribute. Reads from the saved-selection ref so it works
+  // even when the textarea has been blurred by clicking the picker.
   const wrapSpan = useCallback((styleAttr, placeholder = 'text') => {
     const el = textareaRef.current;
     if (!el) return;
-    const { selectionStart: s, selectionEnd: e } = el;
+    const { start: s, end: e } = savedSelectionRef.current;
     const sel = body.slice(s, e) || placeholder;
     const before = `<span style="${styleAttr}">`;
     const after = '</span>';
     const next = body.slice(0, s) + before + sel + after + body.slice(e);
     setBody(next); setDirty(true);
+    const newStart = s + before.length;
+    const newEnd = newStart + sel.length;
+    savedSelectionRef.current = { start: newStart, end: newEnd };
     requestAnimationFrame(() => {
       el.focus();
-      el.setSelectionRange(s + before.length, s + before.length + sel.length);
+      el.setSelectionRange(newStart, newEnd);
     });
   }, [body]);
 
@@ -299,44 +330,23 @@ export default function CardEditorPage({ card, onSave, onCancel }) {
   const applyTextColor   = useCallback((color)  => color && wrapSpan(`color: ${color}`),     [wrapSpan]);
   const applyHighlight   = useCallback((color)  => color && wrapSpan(`background-color: ${color}; padding: 0 0.15em; border-radius: 2px`), [wrapSpan]);
 
-  // Inserts a new step in the `## Steps` section. Each step is a paragraph
-  // separated by the `<!--step-->` token (the same convention cardMarkdown.js
-  // uses for round-tripping). The rendered TechniqueCard turns each one into
-  // a numbered circle with a progress bar across the section.
+  // Inserts the step delimiter token literally at the cursor (or replacing
+  // the current selection). No newlines added, no placeholder text, no jump
+  // to the Steps section — the user controls where the token lands.
   const insertStep = useCallback(() => {
     const el = textareaRef.current;
     if (!el) return;
     const STEP_TOKEN = '<!--step-->';
-    let next = body;
-    const stepsMatch = /^##\s+Steps\s*$/m.exec(next);
-    let caret = el.selectionStart;
-    if (!stepsMatch) {
-      // No Steps section yet — append one at the end with a starter step.
-      const block = `\n\n## Steps\n\nNew step\n`;
-      next = next.trimEnd() + block;
-      caret = next.length - 'New step\n'.length;
-      caret += 'New step'.length; // caret at end of placeholder
-    } else {
-      // Find the end of the Steps section (next `## ` heading or EOF).
-      const afterHeading = stepsMatch.index + stepsMatch[0].length;
-      const rest = next.slice(afterHeading);
-      const nextHeadingRel = rest.search(/^##\s/m);
-      const sectionEnd = nextHeadingRel === -1 ? next.length : afterHeading + nextHeadingRel;
-      const sectionBody = next.slice(afterHeading, sectionEnd).replace(/\s+$/, '');
-      const hasContent = sectionBody.trim().length > 0;
-      const insertion = hasContent
-        ? `\n\n${STEP_TOKEN}\n\nNew step`
-        : `\n\nNew step`;
-      const before = next.slice(0, afterHeading) + sectionBody;
-      const after = next.slice(sectionEnd);
-      next = before + insertion + (after.startsWith('\n') ? '' : '\n\n') + after;
-      caret = before.length + insertion.length;
-    }
+    const hasFocus = document.activeElement === el;
+    const s = hasFocus ? el.selectionStart : savedSelectionRef.current.start;
+    const e = hasFocus ? el.selectionEnd : savedSelectionRef.current.end;
+    const next = body.slice(0, s) + STEP_TOKEN + body.slice(e);
     setBody(next); setDirty(true);
+    const newCaret = s + STEP_TOKEN.length;
+    savedSelectionRef.current = { start: newCaret, end: newCaret };
     requestAnimationFrame(() => {
       el.focus();
-      // Select the placeholder text so they can immediately overwrite.
-      el.setSelectionRange(caret - 'New step'.length, caret);
+      el.setSelectionRange(newCaret, newCaret);
     });
   }, [body]);
 
@@ -355,10 +365,10 @@ export default function CardEditorPage({ card, onSave, onCancel }) {
     }
   }, [body, insertWrap]);
 
+  // Save-state machine for the manual Save button feedback ('idle' | 'saved'
+  // for the green flash). Auto-save still keeps the dirty indicator in sync.
+  const [saveFlash, setSaveFlash] = useState(false);
   const handleSave = useCallback(() => {
-    // Auto-save accepts empty titles (falls back to "New Technique" on the
-    // block side), so the user can leave the field for last and not lose
-    // body content. Manual Save is identical — kept for muscle memory.
     const { overview, steps, commands } = markdownToCard(body);
     onSave({
       id: card ? card.id : `card-${Date.now()}`,
@@ -369,6 +379,8 @@ export default function CardEditorPage({ card, onSave, onCancel }) {
       accentColor: selectedColor, font: selectedFont,
     });
     setDirty(false);
+    setSaveFlash(true);
+    setTimeout(() => setSaveFlash(false), 1200);
   }, [title, subtitle, tags, body, selectedColor, selectedFont, card, onSave]);
 
   // Debounced auto-save: any edit settles to the parent block after 400ms of
@@ -417,6 +429,7 @@ export default function CardEditorPage({ card, onSave, onCancel }) {
     <div
       className="fixed inset-0 z-50 flex flex-col bg-[#1a1a1a]"
       onKeyDown={onRootKeyDown}
+      spellCheck={false}
     >
       {/* ══ Title bar ════════════════════════════════════════════════════════ */}
       <div className="flex h-[42px] flex-shrink-0 items-center gap-2 border-b border-[#262626] bg-[#1f1f1f] px-4">
@@ -473,6 +486,21 @@ export default function CardEditorPage({ card, onSave, onCancel }) {
           {titleFontOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
 
+        <button
+          type="button"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={handleSave}
+          className={`flex flex-shrink-0 items-center gap-1.5 rounded-md border px-3 py-1 text-[11.5px] font-medium transition-colors ${
+            saveFlash
+              ? 'border-emerald-500/50 bg-emerald-500/15 text-emerald-300'
+              : dirty
+                ? 'border-[#5b86c8] bg-[#5b86c8]/20 text-[#86b0e3] hover:bg-[#5b86c8]/30'
+                : 'border-[#3a3a3a] bg-[#1a1a1a] text-[#9a9a9a] hover:border-[#4a4a4a] hover:text-[#c4c4c4]'
+          }`}
+          title="Save now (Ctrl+S) — auto-save also runs in the background"
+        >
+          {saveFlash ? '✓ Saved' : 'Save'}
+        </button>
         <button
           type="button"
           onClick={onCancel}
@@ -585,17 +613,24 @@ export default function CardEditorPage({ card, onSave, onCancel }) {
                   value={body}
                   onChange={(e) => {
                     setBody(e.target.value); setDirty(true);
-                    // Re-fit height on every keystroke so the page (not the
-                    // textarea) becomes the scroll surface.
                     const el = e.currentTarget;
                     el.style.height = 'auto';
                     el.style.height = `${el.scrollHeight}px`;
                   }}
+                  onSelect={captureSelection}
+                  onKeyUp={captureSelection}
+                  onMouseUp={captureSelection}
                   onKeyDown={handleKeyDown}
                   spellCheck={false}
                   autoFocus={!card}
                   placeholder="Start writing…"
-                  className="block flex-1 resize-none overflow-hidden bg-transparent text-[#d4d4d4] placeholder-[#5a5a5a] focus:outline-none"
+                  // `w-1/2 min-w-0` + `basis-0` keeps the two panes exactly
+                  // 50-50 even when the preview contains very wide content
+                  // (long code lines, tables) that would otherwise force
+                  // `flex-1` to grow this pane and shrink the other.
+                  className={`block resize-none overflow-hidden bg-transparent text-[#d4d4d4] placeholder-[#5a5a5a] focus:outline-none ${
+                    viewMode === 'split' ? 'w-1/2 min-w-0 flex-shrink-0 flex-grow-0 basis-1/2' : 'flex-1'
+                  }`}
                   style={{
                     padding: '2.5rem 3.5rem',
                     fontFamily: '"JetBrains Mono", "Fira Code", monospace',
@@ -606,7 +641,12 @@ export default function CardEditorPage({ card, onSave, onCancel }) {
                 />
               )}
               {showPreview && (
-                <div className="flex-1" style={{ padding: '2.5rem 3.5rem', minHeight: '500px' }}>
+                <div
+                  className={`overflow-x-auto ${
+                    viewMode === 'split' ? 'w-1/2 min-w-0 flex-shrink-0 flex-grow-0 basis-1/2' : 'flex-1'
+                  }`}
+                  style={{ padding: '2.5rem 3.5rem', minHeight: '500px' }}
+                >
                   {body?.trim() ? (
                     <MarkdownView>{body}</MarkdownView>
                   ) : (

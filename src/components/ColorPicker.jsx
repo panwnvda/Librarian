@@ -74,7 +74,7 @@ export default function ColorPicker({ value, onChange, onClose, inline = true })
           <button
             key={hex}
             onClick={(e) => { e.stopPropagation(); handleSwatch(hex); }}
-            onMouseDown={(e) => e.stopPropagation()}
+            onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
             className="relative h-[18px] w-[18px] rounded-[3px] ring-1 ring-inset ring-black/20 transition-transform hover:scale-110"
             style={{ background: hex }}
             title={hex}
@@ -91,7 +91,7 @@ export default function ColorPicker({ value, onChange, onClose, inline = true })
           <button
             key={hex}
             onClick={(e) => { e.stopPropagation(); handleSwatch(hex); }}
-            onMouseDown={(e) => e.stopPropagation()}
+            onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
             className="relative h-[18px] w-[18px] rounded-[3px] ring-1 ring-inset ring-black/20 transition-transform hover:scale-110"
             style={{ background: hex }}
             title={hex}
@@ -119,7 +119,7 @@ export default function ColorPicker({ value, onChange, onClose, inline = true })
           />
           <button
             onClick={(e) => { e.stopPropagation(); nativeRef.current?.click(); }}
-            onMouseDown={(e) => e.stopPropagation()}
+            onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
             className="flex h-6 w-6 items-center justify-center rounded-md border border-[#2a2a2a] bg-[#1a1a1a] text-[#9a9a9a] transition-colors hover:border-[#3a3a3a] hover:text-[#e8e8e8]"
             title="Eyedropper / native picker"
           >

@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, BrowserWindow, shell, Menu, nativeTheme } = require('electron');
+const { app, BrowserWindow, shell, Menu, MenuItem, nativeTheme } = require('electron');
 const path = require('path');
 
 // True when running via `npm run electron:dev`, false in a packaged build.
@@ -52,6 +52,45 @@ function createWindow() {
       shell.openExternal(url);
     }
     return { action: 'deny' };
+  });
+
+  // Right-click context menu with spell-check suggestions and an
+  // "Add to dictionary" option, so the user can permanently dismiss
+  // technical jargon (tool names, MITRE technique IDs, etc.) that
+  // Electron's bundled spellchecker flags with red squiggles.
+  mainWindow.webContents.on('context-menu', (_event, params) => {
+    const menu = new Menu();
+    const word = params.misspelledWord;
+
+    if (word) {
+      for (const suggestion of params.dictionarySuggestions) {
+        menu.append(new MenuItem({
+          label: suggestion,
+          click: () => mainWindow.webContents.replaceMisspelling(suggestion),
+        }));
+      }
+      if (params.dictionarySuggestions.length === 0) {
+        menu.append(new MenuItem({ label: 'No suggestions', enabled: false }));
+      }
+      menu.append(new MenuItem({ type: 'separator' }));
+      menu.append(new MenuItem({
+        label: 'Add to dictionary',
+        click: () => mainWindow.webContents.session.addWordToSpellCheckerDictionary(word),
+      }));
+      menu.append(new MenuItem({ type: 'separator' }));
+    }
+
+    if (params.isEditable || params.selectionText) {
+      menu.append(new MenuItem({ role: 'cut', enabled: params.editFlags.canCut }));
+      menu.append(new MenuItem({ role: 'copy', enabled: params.editFlags.canCopy }));
+      menu.append(new MenuItem({ role: 'paste', enabled: params.editFlags.canPaste }));
+      menu.append(new MenuItem({ type: 'separator' }));
+      menu.append(new MenuItem({ role: 'selectAll' }));
+    }
+
+    if (menu.items.length > 0) {
+      menu.popup({ window: mainWindow });
+    }
   });
 
   mainWindow.on('closed', () => { mainWindow = null; });

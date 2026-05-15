@@ -204,7 +204,17 @@ function tokenizeLine(line, language) {
 
 function CodeBlock({ children, title, language }) {
   const [copied, setCopied] = useState(false);
-  const code = typeof children === 'string' ? children : '';
+  // Normalize children to a string. React can hand us a string, an array of
+  // strings (when the parent splits the content), a single element, etc.
+  // Empty/null also collapses to '' so the block still renders its frame
+  // (header + language label) even if the body is empty.
+  let code = '';
+  if (typeof children === 'string') code = children;
+  else if (Array.isArray(children)) {
+    code = children
+      .map((c) => (typeof c === 'string' ? c : c == null ? '' : String(c)))
+      .join('');
+  } else if (children != null) code = String(children);
 
   const resolvedLanguage = useMemo(
     () => language || inferLanguage(code),

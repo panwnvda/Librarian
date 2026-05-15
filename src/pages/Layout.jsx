@@ -5,7 +5,7 @@ import Sidebar from '@/components/Sidebar';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { persistGet, persistSet } from '@/lib/persistentStorage';
 
-export default function Layout({ children, pages, getChildren, createPage, updatePage, deletePage, reorderPages }) {
+export default function Layout({ children, pages, getChildren, createPage, updatePage, deletePage, reorderPages, movePage }) {
   const [open, setOpen] = useState(true);
 
   useEffect(() => {
@@ -47,6 +47,7 @@ export default function Layout({ children, pages, getChildren, createPage, updat
                 updatePage={updatePage}
                 deletePage={deletePage}
                 reorderPages={reorderPages}
+                movePage={movePage}
                 onCollapse={collapse}
               />
             </Panel>

@@ -97,7 +97,14 @@ const components = {
       const props = /** @type {any} */ (child.props) || {};
       const className = props.className || '';
       const match = /language-(\w+)/.exec(className);
-      const code = String(props.children ?? '').replace(/\n$/, '');
+      // react-markdown can hand us props.children as a single string OR an
+      // array of string/text-node children (e.g. when the code spans multiple
+      // lines). String(array) joins with commas and loses the newlines, so
+      // we flatten any array down to a single string by concatenation.
+      let raw = props.children;
+      if (Array.isArray(raw)) raw = raw.map((c) => (typeof c === 'string' ? c : '')).join('');
+      else if (typeof raw !== 'string') raw = String(raw ?? '');
+      const code = raw.replace(/\n$/, '');
       if (!code.trim()) return null;
       return <CodeBlock title="" language={match ? match[1] : undefined}>{code}</CodeBlock>;
     }

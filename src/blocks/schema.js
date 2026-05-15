@@ -2,6 +2,7 @@ import { BlockNoteSchema, defaultBlockSpecs, defaultStyleSpecs, createCodeBlockS
 import { CardBlock } from './CardBlock';
 import { MapBlock } from './MapBlock';
 import { PageLinkBlock } from './PageLinkBlock';
+import { ReportBlock } from './ReportBlock';
 import { FontSize } from './FontSize';
 import { FontFamily } from './FontFamily';
 import { TextColor } from './TextColor';
@@ -58,6 +59,7 @@ export const schema = BlockNoteSchema.create({
     card: CardBlock(),
     map: MapBlock(),
     pagelink: PageLinkBlock(),
+    report: ReportBlock(),
   },
   styleSpecs: {
     ...defaultStyleSpecs,

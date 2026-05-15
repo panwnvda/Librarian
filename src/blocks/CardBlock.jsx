@@ -22,9 +22,6 @@ const DEFAULTS = {
 function CardBlockInner({ block, editor }) {
   const [editing, setEditing] = useState(false);
   const [hovered, setHovered] = useState(false);
-  // Track whether the inner card is expanded so we can enable text selection
-  // (and disable block-drag) for the content the user wants to copy.
-  const [expanded, setExpanded] = useState(false);
 
   let card = { ...DEFAULTS };
   try {
@@ -46,17 +43,26 @@ function CardBlockInner({ block, editor }) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       // Block the browser's native HTML5 text-drag from kicking in inside
-      // the card. Without this, dragging from text content (especially
-      // when expanded with user-select: text) starts a text-copy drag and
-      // the drop pastes a duplicate of the card content. BlockNote's own
-      // drag handle (in the left-side overlay) is a separate element and
-      // is unaffected — block-reordering still works from there.
+      // the card. Without this, dragging from text content starts a
+      // text-copy drag and the drop pastes a duplicate of the card content.
+      // BlockNote's own drag handle (in the left-side overlay) is a
+      // separate element — block-reordering still works from there.
       draggable={false}
       onDragStart={(e) => e.preventDefault()}
-      // When expanded, let the browser select text inside the card so the
-      // user can copy/paste. Collapsed cards stay non-selectable so the
-      // BlockNote drag handle keeps working for repositioning the block.
-      style={expanded ? { userSelect: 'text', WebkitUserSelect: 'text' } : undefined}
+      // Stop mousedown/mouseup from bubbling up to BlockNote/ProseMirror.
+      // ProseMirror auto-creates a NodeSelection on mousedown inside any
+      // `contentEditable=false` block, which prevents the browser from
+      // building a normal text-range selection — that's why you couldn't
+      // highlight text inside a card. Stopping propagation here lets the
+      // browser handle the click natively, so dragging selects text and
+      // single clicks still reach our own onClick handlers (the Edit
+      // button + the card's expand/collapse toggle) because they're
+      // descendants, not ancestors, of this element.
+      onMouseDown={(e) => e.stopPropagation()}
+      onMouseUp={(e) => e.stopPropagation()}
+      // Text selection is always enabled so users can highlight and copy
+      // anything inside the card (title, overview, steps, code).
+      style={{ userSelect: 'text', WebkitUserSelect: 'text' }}
     >
       {hovered && (
         <div className="absolute right-2 top-2 z-10">
@@ -69,7 +75,7 @@ function CardBlockInner({ block, editor }) {
           </button>
         </div>
       )}
-      <TechniqueCard {...card} onExpandedChange={setExpanded} />
+      <TechniqueCard {...card} />
       {editing && (
         <div onClick={(e) => e.stopPropagation()}>
           <CardEditorPage card={card} onSave={handleSave} onCancel={() => setEditing(false)} />

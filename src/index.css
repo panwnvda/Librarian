@@ -534,6 +534,48 @@ html, body, #root {
   background: transparent !important;
   box-shadow: none !important;
 }
+
+/* Card block — extra-aggressive override. BlockNote's default style for a
+   selected custom block paints a 4px blue/white outline around every direct
+   child of the bn-block-content. Clicking a card to expand it triggers a
+   node-selection, which flashed the whole card with that outline. Force
+   transparent + no outline at every selector depth, and keep text selection
+   enabled so users can highlight + copy content (title, overview, steps). */
+.bn-editor .bn-block-content[data-content-type="card"],
+.bn-editor .bn-block-content[data-content-type="card"] *,
+.bn-editor .bn-block-content[data-content-type="card"].ProseMirror-selectednode,
+.bn-editor .bn-block-content[data-content-type="card"].ProseMirror-selectednode > *,
+.bn-editor .ProseMirror-selectednode > .bn-block-content[data-content-type="card"],
+.bn-editor .ProseMirror-selectednode > .bn-block-content[data-content-type="card"] > * {
+  outline: none !important;
+  box-shadow: none !important;
+}
+.bn-editor .bn-block-content[data-content-type="card"],
+.bn-editor .bn-block-content[data-content-type="card"] .technique-card,
+.bn-editor .bn-block-content[data-content-type="card"] .technique-card * {
+  user-select: text !important;
+  -webkit-user-select: text !important;
+}
+/* When the card block is node-selected (ProseMirror NodeSelection — happens
+   on first click) the browser paints a ::selection rectangle over every
+   piece of text in the block. On most themes this rectangle is a near-white
+   color (system "Highlight"), which made the whole card flash white. Force
+   ::selection transparent inside selected card blocks so node-selection
+   stays invisible. Real user-drag text selection still works because that
+   uses a text-range selection, not a node selection, and the global
+   .bn-editor ::selection rule (translucent blue) applies to those. */
+.bn-editor .bn-block-content[data-content-type="card"][data-show-selection],
+.bn-editor .ProseMirror-selectednode .bn-block-content[data-content-type="card"],
+.bn-editor .ProseMirror-selectednode > .bn-block-content[data-content-type="card"],
+.bn-editor .bn-block-content[data-content-type="card"].ProseMirror-selectednode {
+  background-color: transparent !important;
+}
+.bn-editor .bn-block-content[data-content-type="card"].ProseMirror-selectednode ::selection,
+.bn-editor .ProseMirror-selectednode > .bn-block-content[data-content-type="card"] ::selection,
+.bn-editor .ProseMirror-selectednode .bn-block-content[data-content-type="card"] ::selection {
+  background: transparent !important;
+  color: inherit !important;
+}
 /* Also no focus ring on the editable surface itself */
 .bn-editor:focus,
 .bn-editor:focus-within,

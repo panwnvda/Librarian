@@ -57,7 +57,7 @@ function PageEditorRoute({ pages, updatePage, savePageContent, createPage, track
 function AppContent() {
   const {
     pages, loading, createPage, updatePage, deletePage,
-    reorderPages, getChildren, savePageContent,
+    reorderPages, movePage, getChildren, savePageContent,
   } = usePages();
   const { recentIds, trackVisit } = useRecentPages();
 
@@ -79,6 +79,7 @@ function AppContent() {
         updatePage={updatePage}
         deletePage={deletePage}
         reorderPages={reorderPages}
+        movePage={movePage}
       >
         <Routes>
           <Route

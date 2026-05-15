@@ -28,6 +28,11 @@ generated/
 # Tooling rather than app source; excluded from the repo.
 scripts/
 
+# Pre-built .library packs (MITRE ATT&CK, cert study, etc.) — produced by
+# scripts in scripts/ and imported into the app from disk. Personal content
+# rather than app source; excluded from the repo.
+library-packs/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

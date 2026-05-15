@@ -1,4 +1,4 @@
-import { persistGet, persistSet, persistDelete, persistClearWorkspace } from '@/lib/persistentStorage';
+import { persistGet, persistSet, persistDelete } from '@/lib/persistentStorage';
 
 const PAGES_KEY = 'library_workspace_pages';
 const contentKey = (id) => `library_page_content_${id}`;
@@ -80,6 +80,45 @@ export async function reorderPages(parentId, orderedIds) {
   return next;
 }
 
+// Moves a page to a different parent (or to a different position under the
+// same parent). Refuses no-ops (page === parent) and cycles (moving a page
+// into one of its own descendants would create one). Reassigns order for the
+// destination siblings so the dropped page sits at `newIndex`.
+export async function movePage(pageId, newParentId, newIndex) {
+  const pages = await loadPages();
+  const moved = pages.find((p) => p.id === pageId);
+  if (!moved) return pages;
+  if (pageId === newParentId) return pages;
+
+  let cursor = newParentId;
+  while (cursor) {
+    if (cursor === pageId) return pages;
+    cursor = pages.find((p) => p.id === cursor)?.parentId ?? null;
+  }
+
+  const newSiblings = pages
+    .filter((p) => p.parentId === newParentId && p.id !== pageId)
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  const clampedIdx = Math.max(0, Math.min(newIndex ?? newSiblings.length, newSiblings.length));
+  newSiblings.splice(clampedIdx, 0, { ...moved, parentId: newParentId });
+
+  const orderMap = new Map();
+  newSiblings.forEach((p, i) => orderMap.set(p.id, i));
+
+  const next = pages.map((p) => {
+    if (p.id === pageId) {
+      return { ...p, parentId: newParentId, order: orderMap.get(pageId), updatedAt: Date.now() };
+    }
+    if (p.parentId === newParentId && orderMap.has(p.id)) {
+      return { ...p, order: orderMap.get(p.id) };
+    }
+    return p;
+  });
+
+  await savePages(next);
+  return next;
+}
+
 function collectMapIds(blocks) {
   const ids = [];
   const visit = (bls) => {
@@ -111,15 +150,88 @@ export async function exportWorkspace() {
   return { version: 3, exportedAt: new Date().toISOString(), pages, content, mapData };
 }
 
+// Additive import: imported pages and maps are given fresh IDs (so nothing
+// collides with the existing workspace) and grafted onto the sidebar as new
+// top-level subtrees. References inside imported content — /map blocks'
+// `mapId`, /pagelink blocks' `pageId`, and map techniques' `link.id` — are
+// rewritten to the new IDs so cross-page navigation still works after import.
+//
+// The data shape is the v3 export format produced by `exportWorkspace` and by
+// `scripts/convert-cybernotes-to-library.mjs`:
+//   { pages: [...], content: { pageId: blocks }, mapData: { mapId: {...} } }
+function remapBlockRefs(blocks, mapIdMap, pageIdMap) {
+  if (!Array.isArray(blocks)) return blocks;
+  return blocks.map((block) => {
+    if (!block || typeof block !== 'object') return block;
+    const next = { ...block };
+    if (block.props && typeof block.props === 'object') {
+      next.props = { ...block.props };
+      if (block.type === 'map' && next.props.mapId && mapIdMap.has(next.props.mapId)) {
+        next.props.mapId = mapIdMap.get(next.props.mapId);
+      } else if (block.type === 'pagelink' && next.props.pageId && pageIdMap.has(next.props.pageId)) {
+        next.props.pageId = pageIdMap.get(next.props.pageId);
+      }
+    }
+    if (Array.isArray(block.children) && block.children.length) {
+      next.children = remapBlockRefs(block.children, mapIdMap, pageIdMap);
+    }
+    return next;
+  });
+}
+
+function remapMapContent(mapContent, pageIdMap) {
+  if (!mapContent || !Array.isArray(mapContent.columns)) return mapContent;
+  return {
+    ...mapContent,
+    columns: mapContent.columns.map((col) => ({
+      ...col,
+      techniques: (col.techniques || []).map((tech) => {
+        const link = tech.link;
+        if (link && link.type === 'page' && link.id && pageIdMap.has(link.id)) {
+          return { ...tech, link: { ...link, id: pageIdMap.get(link.id) } };
+        }
+        return tech;
+      }),
+    })),
+  };
+}
+
 export async function importWorkspace(data) {
-  if (!data.pages || !Array.isArray(data.pages)) throw new Error('Invalid workspace file.');
-  await persistClearWorkspace();
-  await savePages(data.pages);
-  for (const [id, blocks] of Object.entries(data.content || {})) {
-    await persistSet(contentKey(id), blocks);
+  if (!data || !Array.isArray(data.pages)) throw new Error('Invalid workspace file.');
+
+  // Build collision-free ID mappings before writing anything.
+  const pageIdMap = new Map();
+  for (const p of data.pages) pageIdMap.set(p.id, newId());
+  const mapIdMap = new Map();
+  for (const oldMapId of Object.keys(data.mapData || {})) {
+    mapIdMap.set(oldMapId, 'map_' + Date.now().toString(36) + '_' + Math.random().toString(16).slice(2, 6));
   }
-  for (const [mapId, mapContent] of Object.entries(data.mapData || {})) {
-    await persistSet(`library_map_${mapId}`, mapContent);
+
+  const existing = await loadPages();
+  const baseOrder = existing.length ? Math.max(...existing.map((p) => p.order ?? 0)) + 1 : 0;
+
+  const importedPages = data.pages.map((p, i) => ({
+    ...p,
+    id: pageIdMap.get(p.id),
+    parentId: p.parentId && pageIdMap.has(p.parentId) ? pageIdMap.get(p.parentId) : null,
+    order: baseOrder + i,
+    createdAt: p.createdAt ?? Date.now(),
+    updatedAt: Date.now(),
+  }));
+
+  await savePages([...existing, ...importedPages]);
+
+  for (const [oldPageId, blocks] of Object.entries(data.content || {})) {
+    const newPageId = pageIdMap.get(oldPageId);
+    if (!newPageId) continue;
+    await persistSet(contentKey(newPageId), remapBlockRefs(blocks, mapIdMap, pageIdMap));
   }
-  return data.pages;
+
+  for (const [oldMapId, mapContent] of Object.entries(data.mapData || {})) {
+    const newMapId = mapIdMap.get(oldMapId);
+    if (!newMapId) continue;
+    await persistSet(`library_map_${newMapId}`, remapMapContent(mapContent, pageIdMap));
+  }
+
+  return importedPages;
 }

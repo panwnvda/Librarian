@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { createReactBlockSpec } from '@blocknote/react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
-import { Plus, MoreHorizontal, Trash2, GripVertical, Palette, Layers, Check, CaseSensitive, GripHorizontal, Link2, X, ExternalLink } from 'lucide-react';
+import { Plus, MoreHorizontal, Trash2, GripVertical, Palette, Layers, Check, CaseSensitive, GripHorizontal, Link2, X, ExternalLink, Maximize2, Minimize2 } from 'lucide-react';
 import { persistGet, persistSet } from '@/lib/persistentStorage';
 import { titleFontOptions } from '@/lib/pageStyleOptions';
 import { FONT_STACKS } from '@/hooks/useGlobalFont';
@@ -119,7 +120,7 @@ function useClickOutside(ref, onOutside, active = true) {
 
 // ─── Technique row ────────────────────────────────────────────────────────────
 
-function TechniqueRow({ technique, color, fontStack, onUpdate, onDelete, dragHandleProps }) {
+function TechniqueRow({ technique, color, colorText, fontStack, onUpdate, onDelete, dragHandleProps, compact = false }) {
   // Two modes: viewing the row (clicking navigates if linked, edits if not),
   // or editing title/subtitle inline. Keeps the previous-version simplicity —
   // no embedded overview/steps/commands editor (those belong on the linked
@@ -132,8 +133,22 @@ function TechniqueRow({ technique, color, fontStack, onUpdate, onDelete, dragHan
   // (decimals allowed) — fall back to 10.5 if unset.
   const [sizeFor, setSizeFor] = useState(null);
   const [sizeAnchor, setSizeAnchor] = useState(null);
-  const titleSize = Number(technique.titleSize) || 13;
+  // Technique title = 12 (was 13/14 in older versions), subtitle = 13.
+  // Any stored 14 from a previous default is coerced down to 12 so old
+  // maps update without the user having to right-click every cell.
+  const rawT = Number(technique.titleSize);
+  const titleSize = (!rawT || rawT === 14) ? 12 : rawT;
   const subtitleSize = Number(technique.subtitleSize) || 13;
+  // Per-technique font overrides fall back to the column's fontStack (which
+  // itself falls back to the page's --app-font). Storing null = inherit.
+  const titleFont = technique.titleFont || null;
+  const subtitleFont = technique.subtitleFont || null;
+  const titleFontStack = titleFont
+    ? (FONT_STACKS[titleFont] ?? fontStack)
+    : fontStack;
+  const subtitleFontStack = subtitleFont
+    ? (FONT_STACKS[subtitleFont] ?? fontStack)
+    : fontStack;
   const inputRef = useRef(null);
   const rootRef = useRef(null);
   const navigate = useNavigate();
@@ -179,7 +194,7 @@ function TechniqueRow({ technique, color, fontStack, onUpdate, onDelete, dragHan
           }}
           placeholder="Technique name"
           className="w-full bg-transparent font-medium text-[#e8e8e8] placeholder-[#5a5a5a] outline-none"
-          style={{ ...styleFont, fontSize: `${titleSize}px`, padding: 0, lineHeight: 1.2 }}
+          style={{ fontFamily: titleFontStack || 'var(--app-font)', fontSize: `${titleSize}px`, padding: 0, lineHeight: 1.2 }}
         />
         <input
           value={draft.subtitle}
@@ -190,7 +205,7 @@ function TechniqueRow({ technique, color, fontStack, onUpdate, onDelete, dragHan
           }}
           placeholder="Notes (optional)"
           className="mt-1 w-full bg-transparent text-[#9a9a9a] placeholder-[#5a5a5a] outline-none"
-          style={{ ...styleFont, fontSize: `${subtitleSize}px`, padding: 0, lineHeight: 1.2 }}
+          style={{ fontFamily: subtitleFontStack || 'var(--app-font)', fontSize: `${subtitleSize}px`, padding: 0, lineHeight: 1.2 }}
         />
       </div>
     );
@@ -205,7 +220,9 @@ function TechniqueRow({ technique, color, fontStack, onUpdate, onDelete, dragHan
 
   return (
     <div
-      className="group relative flex items-start gap-1.5 rounded-md border border-transparent bg-[#1f1f1f] p-2 transition-colors hover:border-[#3a3a3a] hover:bg-[#232323]"
+      className={`group relative flex items-start rounded-md border border-transparent bg-[#1f1f1f] transition-colors hover:border-[#3a3a3a] hover:bg-[#232323] ${
+        compact ? 'gap-1 p-1.5' : 'gap-1.5 p-2'
+      }`}
       contentEditable={false}
     >
       <span
@@ -222,8 +239,8 @@ function TechniqueRow({ technique, color, fontStack, onUpdate, onDelete, dragHan
         title={linked ? 'Open linked page' : 'Click to edit'}
       >
         <p
-          className="flex items-center gap-1 truncate font-medium leading-snug text-[#e8e8e8]"
-          style={{ ...styleFont, fontSize: `${titleSize}px` }}
+          className="flex items-start gap-1 font-semibold leading-snug"
+          style={{ fontFamily: titleFontStack || 'var(--app-font)', fontSize: `${titleSize}px`, color: colorText || '#e8e8e8' }}
           onContextMenu={(e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -236,8 +253,8 @@ function TechniqueRow({ technique, color, fontStack, onUpdate, onDelete, dragHan
         </p>
         {technique.subtitle && (
           <p
-            className="truncate leading-snug text-[#8a8a8a]"
-            style={{ ...styleFont, fontSize: `${subtitleSize}px` }}
+            className="leading-snug text-[#8a8a8a]"
+            style={{ fontFamily: subtitleFontStack || 'var(--app-font)', fontSize: `${subtitleSize}px` }}
             onContextMenu={(e) => {
               e.preventDefault();
               e.stopPropagation();
@@ -293,6 +310,8 @@ function TechniqueRow({ technique, color, fontStack, onUpdate, onDelete, dragHan
           anchor={sizeAnchor}
           value={sizeFor === 'title' ? titleSize : subtitleSize}
           onChange={(n) => onUpdate(sizeFor === 'title' ? { titleSize: n } : { subtitleSize: n })}
+          font={sizeFor === 'title' ? titleFont : subtitleFont}
+          onFontChange={(f) => onUpdate(sizeFor === 'title' ? { titleFont: f } : { subtitleFont: f })}
           onClose={() => { setSizeFor(null); setSizeAnchor(null); }}
         />
       )}
@@ -381,7 +400,7 @@ function LinkPicker({ anchor, currentLink, onPick, onClose }) {
 
 // ─── Column ───────────────────────────────────────────────────────────────────
 
-function Column({ column, onUpdate, onDelete }) {
+function Column({ column, onUpdate, onDelete, compact = false }) {
   const [renaming, setRenaming] = useState(false);
   const [titleDraft, setTitleDraft] = useState(column.title);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -440,22 +459,30 @@ function Column({ column, onUpdate, onDelete }) {
     setMenuOpen(false);
   };
 
-  // Right-click on the column title opens the size picker at the click point.
-  // Stored in column.titleSize (number, decimals allowed). Default 15px.
+  // Right-click on the column title opens the size+font picker at the click
+  // point. Default 12px — small enough to fit phase names on one line in
+  // ~200px columns. Any stored 14 from a previous default is coerced down
+  // to 12 so old maps update without the user re-sizing every column.
   const [sizePickerAt, setSizePickerAt] = useState(null);
-  const titleSize = Number(column.titleSize) || 14;
+  const rawTitleSize = Number(column.titleSize);
+  const titleSize = (!rawTitleSize || rawTitleSize === 14) ? 12 : rawTitleSize;
   const setTitleSize = (size) => {
     onUpdate({ ...column, titleSize: size });
   };
 
   return (
-    <div className="flex w-[220px] flex-shrink-0 flex-col" contentEditable={false}>
-      {/* Header */}
-      <div className="group flex items-center gap-1.5 px-1 pb-2">
-        <span
-          className="h-2 w-2 flex-shrink-0 rounded-full"
-          style={{ background: palette.dot }}
-        />
+    <div
+      className={`flex flex-shrink-0 flex-col ${compact ? 'w-[200px]' : 'w-[190px]'}`}
+      contentEditable={false}
+    >
+      {/* Header — centered, bold-mono, color-coded with a phase-colored
+          bottom border, in the style of the old ArchitectureMap. The count
+          badge and ⋯ menu float on the right so the title stays optically
+          centered. */}
+      <div
+        className="group relative mb-2 flex items-center justify-center border-b px-1 py-2"
+        style={{ borderColor: palette.ring }}
+      >
         {renaming ? (
           <input
             ref={titleInputRef}
@@ -467,7 +494,7 @@ function Column({ column, onUpdate, onDelete }) {
               if (e.key === 'Escape') { setTitleDraft(column.title); setRenaming(false); }
             }}
             onMouseDown={(e) => e.stopPropagation()}
-            className="min-w-0 flex-1 bg-transparent font-semibold outline-none"
+            className="min-w-0 w-full bg-transparent text-center font-bold uppercase tracking-[0.18em] outline-none"
             style={{ color: palette.text, fontFamily: fontStack, fontSize: `${titleSize}px` }}
           />
         ) : (
@@ -478,9 +505,9 @@ function Column({ column, onUpdate, onDelete }) {
               e.preventDefault();
               setSizePickerAt({ x: e.clientX, y: e.clientY });
             }}
-            className="min-w-0 flex-1 truncate text-left font-semibold"
+            className="min-w-0 w-full text-center font-bold uppercase leading-tight tracking-[0.18em]"
             style={{ color: palette.text, fontFamily: fontStack, fontSize: `${titleSize}px` }}
-            title="Right-click to change size"
+            title="Right-click to change size or font"
           >
             {column.title}
           </button>
@@ -490,13 +517,15 @@ function Column({ column, onUpdate, onDelete }) {
             anchor={sizePickerAt}
             value={titleSize}
             onChange={setTitleSize}
+            font={column.font || null}
+            onFontChange={(f) => onUpdate({ ...column, font: f })}
             onClose={() => setSizePickerAt(null)}
           />
         )}
-        <span className="flex-shrink-0 text-[11px] tabular-nums text-[#6e6e6e]">
+        <span className="pointer-events-none absolute right-7 top-1/2 -translate-y-1/2 text-[10px] tabular-nums text-[#6e6e6e]">
           {column.techniques.length}
         </span>
-        <div className="relative" ref={menuRef}>
+        <div className="absolute right-1 top-1/2 -translate-y-1/2" ref={menuRef}>
           <button
             onClick={() => setMenuOpen((v) => !v)}
             onMouseDown={(e) => e.stopPropagation()}
@@ -628,12 +657,6 @@ function Column({ column, onUpdate, onDelete }) {
         </div>
       </div>
 
-      {/* Color band */}
-      <div
-        className="h-[2px] rounded-full"
-        style={{ background: palette.dot, opacity: 0.55 }}
-      />
-
       {/* Techniques */}
       <Droppable droppableId={column.id} type="technique">
         {(drop, snap) => (
@@ -655,7 +678,9 @@ function Column({ column, onUpdate, onDelete }) {
                     <TechniqueRow
                       technique={t}
                       color={column.color}
+                      colorText={palette.text}
                       fontStack={fontStack}
+                      compact={compact}
                       onUpdate={(patch) => updateTechnique(t.id, patch)}
                       onDelete={() => deleteTechnique(t.id)}
                       dragHandleProps={drag.dragHandleProps}
@@ -668,9 +693,10 @@ function Column({ column, onUpdate, onDelete }) {
             <button
               onClick={addTechnique}
               onMouseDown={(e) => e.stopPropagation()}
-              className="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-[12px] text-[#6e6e6e] transition-colors hover:bg-white/[0.045] hover:text-[#c4c4c4]"
+              title="Add technique"
+              className="flex items-center justify-center rounded-md py-1.5 text-[#6e6e6e] transition-colors hover:bg-white/[0.045] hover:text-[#c4c4c4]"
             >
-              <Plus className="h-3 w-3" /> Add technique
+              <Plus className="h-4 w-4" />
             </button>
           </div>
         )}
@@ -690,6 +716,22 @@ function MapBlockInner({ block, editor }) {
   const storedHeight = Number(block.props.height) || 0;
   const [height, setHeight] = useState(storedHeight);
   const resizingRef = useRef(null);
+
+  // Fullscreen overlay state. Local to this session — not persisted, so a
+  // refresh / navigation away dismisses it. Escape exits.
+  const [fullscreen, setFullscreen] = useState(false);
+  useEffect(() => {
+    if (!fullscreen) return;
+    const onKey = (e) => { if (e.key === 'Escape') setFullscreen(false); };
+    document.addEventListener('keydown', onKey);
+    // Lock background scroll while overlay is open.
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [fullscreen]);
 
   useEffect(() => {
     setHeight(Number(block.props.height) || 0);
@@ -834,9 +876,13 @@ function MapBlockInner({ block, editor }) {
     );
   }
 
-  return (
+  const body = (
     <div
-      className="my-2 w-full overflow-hidden rounded-xl border border-[#2a2a2a] bg-[#1d1d1d]"
+      className={
+        fullscreen
+          ? 'fixed inset-0 z-[1500] flex flex-col overflow-hidden border-0 bg-[#1d1d1d]'
+          : 'my-2 w-full overflow-hidden rounded-xl border border-[#2a2a2a] bg-[#1d1d1d]'
+      }
       contentEditable={false}
       data-skip-editor-context-menu
     >
@@ -852,15 +898,25 @@ function MapBlockInner({ block, editor }) {
             </span>
           )}
         </div>
-        {data.columns.length > 0 && (
+        <div className="flex items-center gap-1">
+          {data.columns.length > 0 && (
+            <button
+              onClick={addColumn}
+              onMouseDown={(e) => e.stopPropagation()}
+              className="flex items-center gap-1.5 rounded-md px-2 py-1 text-[12px] text-[#9a9a9a] transition-colors hover:bg-white/[0.05] hover:text-[#e8e8e8]"
+            >
+              <Plus className="h-3 w-3" /> Add column
+            </button>
+          )}
           <button
-            onClick={addColumn}
+            onClick={() => setFullscreen((v) => !v)}
             onMouseDown={(e) => e.stopPropagation()}
-            className="flex items-center gap-1.5 rounded-md px-2 py-1 text-[12px] text-[#9a9a9a] transition-colors hover:bg-white/[0.05] hover:text-[#e8e8e8]"
+            title={fullscreen ? 'Exit fullscreen (Esc)' : 'Fullscreen'}
+            className="flex h-6 w-6 items-center justify-center rounded-md text-[#9a9a9a] transition-colors hover:bg-white/[0.05] hover:text-[#e8e8e8]"
           >
-            <Plus className="h-3 w-3" /> Add column
+            {fullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
           </button>
-        )}
+        </div>
       </div>
 
       {/* Body */}
@@ -876,15 +932,16 @@ function MapBlockInner({ block, editor }) {
         </div>
       ) : (
         <div
-          className="overflow-x-auto overflow-y-auto"
-          style={height > 0 ? { height: `${height}px` } : undefined}
+          className={fullscreen ? 'flex-1 overflow-x-auto overflow-y-auto' : 'overflow-x-auto overflow-y-auto'}
+          style={fullscreen ? undefined : (height > 0 ? { height: `${height}px` } : undefined)}
         >
           <DragDropContext onDragEnd={onDragEnd}>
-            <div className="flex min-w-min gap-4 p-4">
+            <div className={`flex min-w-min ${fullscreen ? 'gap-2.5 p-3' : 'gap-4 p-4'}`}>
               {data.columns.map((col) => (
                 <Column
                   key={col.id}
                   column={col}
+                  compact={fullscreen}
                   onUpdate={(next) => updateColumn(col.id, next)}
                   onDelete={() => deleteColumn(col.id)}
                 />
@@ -892,7 +949,9 @@ function MapBlockInner({ block, editor }) {
               <button
                 onClick={addColumn}
                 onMouseDown={(e) => e.stopPropagation()}
-                className="flex w-[220px] flex-shrink-0 items-center justify-center gap-1.5 self-start rounded-lg border border-dashed border-[#3a3a3a] py-2 text-[12px] text-[#6e6e6e] transition-colors hover:border-[#5a5a5a] hover:text-[#c4c4c4]"
+                className={`flex flex-shrink-0 items-center justify-center gap-1.5 self-start rounded-lg border border-dashed border-[#3a3a3a] text-[12px] text-[#6e6e6e] transition-colors hover:border-[#5a5a5a] hover:text-[#c4c4c4] ${
+                  fullscreen ? 'w-[200px] py-1.5' : 'w-[220px] py-2'
+                }`}
               >
                 <Plus className="h-3 w-3" /> Add column
               </button>
@@ -901,8 +960,9 @@ function MapBlockInner({ block, editor }) {
         </div>
       )}
 
-      {/* Resize handle */}
-      {data.columns.length > 0 && (
+      {/* Resize handle — hidden in fullscreen since the overlay sizes
+          itself to the viewport. */}
+      {data.columns.length > 0 && !fullscreen && (
         <div
           onMouseDown={onResizeStart}
           onDoubleClick={resetHeight}
@@ -914,6 +974,14 @@ function MapBlockInner({ block, editor }) {
       )}
     </div>
   );
+
+  // In fullscreen, portal the overlay onto document.body so `position:fixed`
+  // is relative to the viewport. BlockNote applies a transform on its block
+  // wrappers, which would otherwise turn this fixed element into a
+  // relatively-positioned descendant of the transformed ancestor — that's
+  // what made the fullscreen overlay appear semi-transparent + overlap the
+  // cards below. Portaling escapes that containing block entirely.
+  return fullscreen ? createPortal(body, document.body) : body;
 }
 
 export const MapBlock = createReactBlockSpec(

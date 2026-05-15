@@ -4,7 +4,7 @@ import { BlockNoteView } from '@blocknote/mantine';
 import { useCreateBlockNote, SuggestionMenuController, getDefaultReactSlashMenuItems } from '@blocknote/react';
 import { filterSuggestionItems } from '@blocknote/core';
 import '@blocknote/mantine/style.css';
-import { Image as ImageIcon, Smile, X, ChevronRight, Shield, Map, Type, Palette, FileText, List, FileCode, AlignLeft, AlignCenter } from 'lucide-react';
+import { Image as ImageIcon, Smile, X, ChevronRight, Shield, Map, Type, Palette, FileText, List, FileCode, AlignLeft, AlignCenter, Code as CodeIcon, FileCheck } from 'lucide-react';
 import { schema } from '@/blocks/schema';
 import { titleFontOptions } from '@/lib/pageStyleOptions';
 import { ColorPickerPopover } from '@/components/ColorPicker';
@@ -67,6 +67,14 @@ function BlockPageEditor({ page, allPages = [], initialBlocks, updatePage, saveC
   const editor = useCreateBlockNote({
     schema,
     initialContent: initialBlocks?.length ? initialBlocks : undefined,
+    // Disable browser spellcheck on the ProseMirror contenteditable at
+    // editor-creation time, so we don't need a MutationObserver to fight
+    // ProseMirror over the attribute. The previous observer-based fix
+    // re-queried the DOM on every block mutation, which made pages with
+    // many cards crawl in Firefox.
+    domAttributes: {
+      editor: { spellcheck: 'false' },
+    },
     uploadFile: async (file) => {
       // Local-first: convert to data URL and embed inline.
       return new Promise((resolve, reject) => {
@@ -125,10 +133,80 @@ function BlockPageEditor({ page, allPages = [], initialBlocks, updatePage, saveC
     }
   }, [title, titleSize]);
 
+  // The latest blocks BlockNote handed to onChange. Used by the unmount
+  // flush below so a quick edit (e.g. apply colour and immediately navigate
+  // away) doesn't get lost when the debounce timer is still pending.
+  const pendingBlocksRef = useRef(null);
+  const pageIdRef = useRef(page?.id);
+  const saveContentRef = useRef(saveContent);
+  const [saveState, setSaveState] = useState('idle'); // 'idle' | 'dirty' | 'saving' | 'saved'
+  useEffect(() => { pageIdRef.current = page?.id; }, [page?.id]);
+  useEffect(() => { saveContentRef.current = saveContent; }, [saveContent]);
+
   const debouncedSave = useCallback((blocks) => {
+    pendingBlocksRef.current = blocks;
+    setSaveState('dirty');
     clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => saveContent(page.id, blocks), 600);
+    saveTimer.current = setTimeout(async () => {
+      setSaveState('saving');
+      try {
+        await saveContent(page.id, blocks);
+        pendingBlocksRef.current = null;
+        setSaveState('saved');
+        setTimeout(() => setSaveState((s) => (s === 'saved' ? 'idle' : s)), 1500);
+      } catch {
+        setSaveState('dirty');
+      }
+    }, 600);
   }, [page?.id, saveContent]);
+
+  // Manual save — bypasses the debounce so the user can guarantee a write
+  // before navigating away or refreshing. Hook on Save button + Ctrl+S.
+  const manualSave = useCallback(async () => {
+    const blocks = pendingBlocksRef.current ?? editor.document;
+    if (saveTimer.current) {
+      clearTimeout(saveTimer.current);
+      saveTimer.current = null;
+    }
+    if (!blocks || !page?.id) return;
+    setSaveState('saving');
+    try {
+      await saveContent(page.id, blocks);
+      pendingBlocksRef.current = null;
+      setSaveState('saved');
+      setTimeout(() => setSaveState((s) => (s === 'saved' ? 'idle' : s)), 1500);
+    } catch {
+      setSaveState('dirty');
+    }
+  }, [editor, page?.id, saveContent]);
+
+  // Ctrl+S / Cmd+S → manual save. Captured at window level so it fires
+  // regardless of which child element has focus (sidebar, color picker,
+  // toolbar button, etc.).
+  useEffect(() => {
+    const onKey = (e) => {
+      if ((e.metaKey || e.ctrlKey) && (e.key === 's' || e.key === 'S')) {
+        e.preventDefault();
+        manualSave();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [manualSave]);
+
+  // Flush any pending edits when the editor unmounts (e.g. user navigates
+  // to another page right after changing a colour). Without this, edits
+  // made in the last 600ms of the session would be silently dropped.
+  useEffect(() => () => {
+    if (saveTimer.current) {
+      clearTimeout(saveTimer.current);
+      saveTimer.current = null;
+    }
+    if (pendingBlocksRef.current && pageIdRef.current && saveContentRef.current) {
+      saveContentRef.current(pageIdRef.current, pendingBlocksRef.current);
+      pendingBlocksRef.current = null;
+    }
+  }, []);
 
   const updateStats = useCallback(() => {
     let words = 0, blocks = 0;
@@ -190,6 +268,22 @@ function BlockPageEditor({ page, allPages = [], initialBlocks, updatePage, saveC
   }, [editor]);
 
   useEffect(() => { extractHeadings(); }, [extractHeadings]);
+
+  // Debounce the two doc-traversal helpers so they don't run on every
+  // single keystroke. With many blocks on a page (e.g. an imported MITRE
+  // library page with 30+ technique cards), running them inline made
+  // typing feel laggy. 300ms is short enough that the headings panel and
+  // word count still feel live but skips redundant work between strokes.
+  const slowUpdateTimer = useRef(null);
+  const handleEditorChange = useCallback(() => {
+    debouncedSave(editor.document);
+    clearTimeout(slowUpdateTimer.current);
+    slowUpdateTimer.current = setTimeout(() => {
+      extractHeadings();
+      updateStats();
+    }, 300);
+  }, [debouncedSave, extractHeadings, updateStats, editor]);
+  useEffect(() => () => clearTimeout(slowUpdateTimer.current), []);
 
   const scrollToHeading = useCallback((heading) => {
     const el = document.querySelector(`[data-id="${heading.id}"]`);
@@ -273,6 +367,36 @@ function BlockPageEditor({ page, allPages = [], initialBlocks, updatePage, saveC
         onItemClick: () => {
           editor.insertBlocks(
             [{ type: 'map', props: { mapId: '' } }],
+            editor.getTextCursorPosition().block,
+            'after'
+          );
+        },
+      },
+      {
+        title: 'Report',
+        subtext: 'SysReptor pentest report — upload a design, fill it out, export PDF',
+        aliases: ['report', 'sysreptor', 'pentest', 'finding', 'cvss', 'pdf'],
+        group: 'Custom blocks',
+        icon: <FileCheck className="h-4 w-4" />,
+        onItemClick: () => {
+          editor.insertBlocks(
+            [{ type: 'report', props: { reportId: '' } }],
+            editor.getTextCursorPosition().block,
+            'after'
+          );
+        },
+      },
+      // BlockNote 0.50's default slash menu omits an entry for the codeBlock
+      // spec we register in schema.js — so /code did nothing. Adding it here.
+      {
+        title: 'Code block',
+        subtext: 'Syntax-highlighted code (bash, python, …)',
+        aliases: ['code', 'codeblock', 'snippet', 'fence'],
+        group: 'Basic blocks',
+        icon: <CodeIcon className="h-4 w-4" />,
+        onItemClick: () => {
+          editor.insertBlocks(
+            [{ type: 'codeBlock', props: { language: 'text' } }],
             editor.getTextCursorPosition().block,
             'after'
           );
@@ -518,6 +642,7 @@ function BlockPageEditor({ page, allPages = [], initialBlocks, updatePage, saveC
           onChange={handleTitleChange}
           placeholder="Untitled"
           rows={1}
+          spellCheck={false}
           className={`mb-1 w-full resize-none overflow-hidden rounded bg-transparent font-bold leading-tight tracking-tight placeholder-[#3a3a3a] outline-none transition-colors hover:bg-white/[0.025] focus:bg-white/[0.04] ${fontFamily ? '' : fontClass}`}
           style={{
             fontFamily: fontFamily
@@ -581,6 +706,7 @@ function BlockPageEditor({ page, allPages = [], initialBlocks, updatePage, saveC
       <div
         ref={editorWrapperRef}
         className={`blocknote-wrapper mx-auto w-full max-w-[1280px] flex-1 px-16 pb-32 ${fontFamily ? '' : fontClass}`}
+        spellCheck={false}
         style={
           fontFamily
             ? { fontFamily: buildStack(fontFamily, CATALOG_BY_FAMILY[fontFamily] || 'sans') }
@@ -590,7 +716,7 @@ function BlockPageEditor({ page, allPages = [], initialBlocks, updatePage, saveC
         <BlockNoteView
           editor={editor}
           theme="dark"
-          onChange={() => { debouncedSave(editor.document); extractHeadings(); updateStats(); }}
+          onChange={handleEditorChange}
         >
           <SuggestionMenuController triggerCharacter="/" getItems={getSlashItems} />
         </BlockNoteView>
@@ -603,9 +729,28 @@ function BlockPageEditor({ page, allPages = [], initialBlocks, updatePage, saveC
         onTitleSizeChange={handleTitleSizeChange}
       />
 
-      {/* Word count status bar */}
-      <div className="fixed bottom-3 right-4 z-20 text-[11px] text-[#5a5a5a] select-none">
-        {wordCount.words > 0 && `${wordCount.words.toLocaleString()} words · ${wordCount.blocks} blocks`}
+      {/* Word count + manual save. Auto-save still runs in the background;
+          this button is a guaranteed-now write for cases where the debounce
+          hasn't fired yet. Ctrl+S / Cmd+S triggers the same path. */}
+      <div className="fixed bottom-3 right-4 z-20 flex items-center gap-3 text-[11px] text-[#5a5a5a] select-none">
+        {wordCount.words > 0 && (
+          <span>{wordCount.words.toLocaleString()} words · {wordCount.blocks} blocks</span>
+        )}
+        <button
+          type="button"
+          onClick={manualSave}
+          disabled={saveState === 'saving'}
+          title="Save now (Ctrl+S) — auto-save also runs in the background"
+          className={`flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] font-medium transition-colors ${
+            saveState === 'dirty'
+              ? 'border-[#5b86c8] bg-[#5b86c8]/15 text-[#86b0e3] hover:bg-[#5b86c8]/25'
+              : saveState === 'saved'
+                ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
+                : 'border-[#2a2a2a] bg-[#1f1f1f] text-[#7a7a7a] hover:border-[#3a3a3a] hover:text-[#c4c4c4]'
+          }`}
+        >
+          {saveState === 'saving' ? 'Saving…' : saveState === 'saved' ? 'Saved' : saveState === 'dirty' ? 'Save now' : 'Save'}
+        </button>
       </div>
 
       {/* Table of Contents */}
@@ -946,6 +1091,7 @@ function MarkdownPageEditor({ page, allPages = [], initialBlocks, updatePage, sa
           onChange={handleTitleChange}
           placeholder="Untitled"
           rows={1}
+          spellCheck={false}
           className={`mb-4 w-full resize-none overflow-hidden rounded bg-transparent font-bold leading-tight tracking-tight placeholder-[#3a3a3a] outline-none transition-colors hover:bg-white/[0.025] focus:bg-white/[0.04] ${fontFamily ? '' : fontClass}`}
           style={{
             fontFamily: fontFamily

@@ -5,6 +5,7 @@ import {
   updatePageMeta,
   deletePage as storeDelete,
   reorderPages as storeReorder,
+  movePage as storeMovePage,
   loadPageContent,
   savePageContent,
 } from '@/lib/pageStore';
@@ -53,6 +54,11 @@ export function usePages() {
     setPages(next);
   }, []);
 
+  const movePage = useCallback(async (pageId, newParentId, newIndex) => {
+    const next = await storeMovePage(pageId, newParentId, newIndex);
+    setPages(next);
+  }, []);
+
   return {
     pages,
     loading,
@@ -60,6 +66,7 @@ export function usePages() {
     updatePage,
     deletePage,
     reorderPages,
+    movePage,
     getChildren,
     getPage,
     loadPageContent,
