@@ -245,7 +245,8 @@ function TechniqueRow({ technique, color, colorText, fontStack, onUpdate, onDele
             e.preventDefault();
             e.stopPropagation();
             setSizeFor('title');
-            setSizeAnchor({ x: e.clientX, y: e.clientY });
+            const r = e.currentTarget.getBoundingClientRect();
+            setSizeAnchor({ x: r.left, y: r.bottom + 4 });
           }}
         >
           {technique.title || 'Untitled technique'}
@@ -259,7 +260,8 @@ function TechniqueRow({ technique, color, colorText, fontStack, onUpdate, onDele
               e.preventDefault();
               e.stopPropagation();
               setSizeFor('subtitle');
-              setSizeAnchor({ x: e.clientX, y: e.clientY });
+              const r = e.currentTarget.getBoundingClientRect();
+            setSizeAnchor({ x: r.left, y: r.bottom + 4 });
             }}
           >
             {technique.subtitle}
@@ -404,8 +406,11 @@ function Column({ column, onUpdate, onDelete, compact = false }) {
   const [renaming, setRenaming] = useState(false);
   const [titleDraft, setTitleDraft] = useState(column.title);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState(null); // { x, y } viewport coords
   const [fontOpen, setFontOpen] = useState(false);
   const menuRef = useRef(null);
+  const menuPanelRef = useRef(null);
+  const dotsBtnRef = useRef(null);
   const titleInputRef = useRef(null);
 
   const palette = resolvePalette(column.color);
@@ -415,7 +420,21 @@ function Column({ column, onUpdate, onDelete, compact = false }) {
   const fontStack = column.font ? (FONT_STACKS[column.font] ?? 'var(--app-font)') : 'var(--app-font)';
   const [colorPickerOpen, setColorPickerOpen] = useState(false);
 
-  useClickOutside(menuRef, () => setMenuOpen(false), menuOpen);
+  // Custom click-outside: menu panel is portaled to document.body, so the
+  // default useClickOutside(menuRef) — which only knows about the dots
+  // button's wrapper — would treat any menu click as "outside" and close
+  // it instantly. Also accept clicks inside menuPanelRef.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handler = (e) => {
+      const t = e.target;
+      if (menuRef.current?.contains(t)) return;
+      if (menuPanelRef.current?.contains(t)) return;
+      setMenuOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [menuOpen]);
 
   useEffect(() => {
     if (renaming) titleInputRef.current?.select();
@@ -503,7 +522,8 @@ function Column({ column, onUpdate, onDelete, compact = false }) {
             onMouseDown={(e) => e.stopPropagation()}
             onContextMenu={(e) => {
               e.preventDefault();
-              setSizePickerAt({ x: e.clientX, y: e.clientY });
+              const r = e.currentTarget.getBoundingClientRect();
+              setSizePickerAt({ x: r.left, y: r.bottom + 4 });
             }}
             className="min-w-0 w-full text-center font-bold leading-tight tracking-wide"
             style={{ color: palette.text, fontFamily: fontStack, fontSize: `${titleSize}px` }}
@@ -527,14 +547,37 @@ function Column({ column, onUpdate, onDelete, compact = false }) {
         </span>
         <div className="absolute right-1 top-1/2 -translate-y-1/2" ref={menuRef}>
           <button
-            onClick={() => setMenuOpen((v) => !v)}
+            ref={dotsBtnRef}
+            onClick={() => {
+              if (menuOpen) { setMenuOpen(false); return; }
+              const btn = dotsBtnRef.current;
+              if (btn) {
+                const r = btn.getBoundingClientRect();
+                // Anchor menu below the dots button. Default: align menu
+                // right edge to button right edge (opens leftward). If
+                // that would clip off-screen-left, flip to left-edge
+                // alignment (opens rightward).
+                const MENU_W = 240; // matches w-60
+                const PAD = 8;
+                let x = r.right - MENU_W;
+                if (x < PAD) x = Math.min(r.left, window.innerWidth - MENU_W - PAD);
+                if (x < PAD) x = PAD;
+                setMenuPos({ x, y: r.bottom + 4 });
+              }
+              setMenuOpen(true);
+            }}
             onMouseDown={(e) => e.stopPropagation()}
             className="flex h-5 w-5 items-center justify-center rounded text-[#6e6e6e] opacity-0 transition-opacity hover:bg-white/[0.06] hover:text-[#c4c4c4] group-hover:opacity-100"
           >
             <MoreHorizontal className="h-3.5 w-3.5" />
           </button>
-          {menuOpen && (
-            <div className="absolute right-0 top-full z-50 mt-1 w-60 overflow-hidden rounded-lg border border-[#373737] bg-[#252525] py-1 shadow-2xl">
+          {menuOpen && menuPos && createPortal(
+            <div
+              ref={menuPanelRef}
+              style={{ left: menuPos.x, top: menuPos.y }}
+              className="fixed z-[2200] w-60 overflow-hidden rounded-lg border border-[#373737] bg-[#252525] py-1 shadow-2xl"
+              onMouseDown={(e) => e.stopPropagation()}
+            >
               <button
                 onClick={() => { setMenuOpen(false); setRenaming(true); setTitleDraft(column.title); }}
                 onMouseDown={(e) => e.stopPropagation()}
@@ -652,7 +695,8 @@ function Column({ column, onUpdate, onDelete, compact = false }) {
               >
                 <Trash2 className="h-3 w-3" /> Delete column
               </button>
-            </div>
+            </div>,
+            document.body
           )}
         </div>
       </div>
