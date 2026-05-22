@@ -55,6 +55,10 @@ function TechniqueCard({ title, subtitle, tags = [], accentColor = 'cyan', overv
 
   return (
     <div className="technique-card rounded-md border border-[#2a2a2a] bg-[#202020] hover:border-[#3a3a3a] overflow-hidden transition-all">
+      {/* Colored top bar — matches the map column's accent bar so a card and
+          its column read as the same color at a glance. Uses the same `dot`
+          shade the column does (via COLOR_MAP[accent].progress). */}
+      <div className={`h-[3px] w-full ${colors.progress}`} aria-hidden />
       <div
         className="p-4 cursor-pointer flex items-start justify-between gap-4"
         onClick={handleToggleExpanded}
