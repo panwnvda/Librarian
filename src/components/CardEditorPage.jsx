@@ -16,6 +16,22 @@ import { FONT_STACKS } from '../hooks/useGlobalFont';
 import { ColorPickerPopover } from './ColorPicker';
 
 // ─── Toolbar primitives ──────────────────────────────────────────────────────
+// Walk up the DOM until we find the nearest ancestor that actually scrolls.
+// Used by the textarea auto-grow logic so we can snapshot+restore its
+// scrollTop across the brief height='auto' collapse — without this the
+// page jumps every time the user adds or deletes content while scrolled.
+function findScrollParent(el) {
+  let node = el?.parentElement;
+  while (node) {
+    const oy = getComputedStyle(node).overflowY;
+    if ((oy === 'auto' || oy === 'scroll') && node.scrollHeight > node.clientHeight) {
+      return node;
+    }
+    node = node.parentElement;
+  }
+  return document.scrollingElement || document.documentElement;
+}
+
 const ToolDivider = memo(() => (
   <div className="mx-1 h-4 w-px flex-shrink-0 bg-[#2f2f2f]" />
 ));
@@ -250,7 +266,7 @@ export default function CardEditorPage({ card, onSave, onCancel }) {
     const next = body.slice(0, s) + before + sel + after + body.slice(e);
     setBody(next); setDirty(true);
     requestAnimationFrame(() => {
-      el.focus();
+      el.focus({ preventScroll: true });
       el.setSelectionRange(s + before.length, s + before.length + sel.length);
     });
   }, [body]);
@@ -264,7 +280,7 @@ export default function CardEditorPage({ card, onSave, onCancel }) {
     const next = body.slice(0, ls) + prefix + body.slice(ls);
     setBody(next); setDirty(true);
     requestAnimationFrame(() => {
-      el.focus();
+      el.focus({ preventScroll: true });
       el.setSelectionRange(s + prefix.length, s + prefix.length);
     });
   }, [body]);
@@ -277,7 +293,7 @@ export default function CardEditorPage({ card, onSave, onCancel }) {
     const block = `\n\`\`\`bash\n${sel || 'code here'}\n\`\`\`\n`;
     setBody(body.slice(0, s) + block + body.slice(e)); setDirty(true);
     requestAnimationFrame(() => {
-      el.focus();
+      el.focus({ preventScroll: true });
       const cs = s + 8;
       el.setSelectionRange(cs, cs + (sel || 'code here').length);
     });
@@ -289,7 +305,7 @@ export default function CardEditorPage({ card, onSave, onCancel }) {
     const s = el.selectionStart;
     const block = '\n\n---\n\n';
     setBody(body.slice(0, s) + block + body.slice(s)); setDirty(true);
-    requestAnimationFrame(() => { el.focus(); el.setSelectionRange(s + block.length, s + block.length); });
+    requestAnimationFrame(() => { el.focus({ preventScroll: true }); el.setSelectionRange(s + block.length, s + block.length); });
   }, [body]);
 
   // The textarea's selectionStart/End can get clobbered (set to 0/0) when the
@@ -320,7 +336,7 @@ export default function CardEditorPage({ card, onSave, onCancel }) {
     const newEnd = newStart + sel.length;
     savedSelectionRef.current = { start: newStart, end: newEnd };
     requestAnimationFrame(() => {
-      el.focus();
+      el.focus({ preventScroll: true });
       el.setSelectionRange(newStart, newEnd);
     });
   }, [body]);
@@ -345,7 +361,7 @@ export default function CardEditorPage({ card, onSave, onCancel }) {
     const newCaret = s + STEP_TOKEN.length;
     savedSelectionRef.current = { start: newCaret, end: newCaret };
     requestAnimationFrame(() => {
-      el.focus();
+      el.focus({ preventScroll: true });
       el.setSelectionRange(newCaret, newCaret);
     });
   }, [body]);
@@ -410,11 +426,22 @@ export default function CardEditorPage({ card, onSave, onCancel }) {
   // Keep the textarea sized to its content. Re-fits on every body change
   // and on view-mode toggles so toolbar inserts (which mutate `body`)
   // grow the editor rather than hiding overflow inside a fixed-height pane.
+  //
+  // The 'auto' → scrollHeight two-step is necessary to *shrink* the textarea
+  // when content is deleted (otherwise scrollHeight is whatever the textarea
+  // is currently sized to, not what the content actually needs). The downside
+  // is that 'auto' collapses the element for one paint, which shifts every
+  // following block up and changes the scroll-container's scrollTop. We
+  // snapshot the container's scrollTop before the resize and restore it after
+  // so the user's viewport stays put no matter what they edit.
   useEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
+    const scroller = findScrollParent(el);
+    const prev = scroller ? scroller.scrollTop : 0;
     el.style.height = 'auto';
     el.style.height = `${el.scrollHeight}px`;
+    if (scroller) scroller.scrollTop = prev;
   }, [body, viewMode]);
 
   const onRootKeyDown = useCallback((e) => {
@@ -576,8 +603,12 @@ export default function CardEditorPage({ card, onSave, onCancel }) {
                 className="mb-5 w-full resize-none overflow-hidden bg-transparent text-[36px] font-bold leading-tight tracking-tight text-[#e8e8e8] placeholder-[#3a3a3a] outline-none"
                 style={{ fontFamily: 'Inter, sans-serif' }}
                 onInput={(e) => {
-                  e.currentTarget.style.height = 'auto';
-                  e.currentTarget.style.height = `${e.currentTarget.scrollHeight}px`;
+                  const el = e.currentTarget;
+                  const scroller = findScrollParent(el);
+                  const prev = scroller ? scroller.scrollTop : 0;
+                  el.style.height = 'auto';
+                  el.style.height = `${el.scrollHeight}px`;
+                  if (scroller) scroller.scrollTop = prev;
                 }}
                 onKeyDown={(e) => { if (e.key === 'Enter') e.preventDefault(); }}
               />
@@ -614,8 +645,11 @@ export default function CardEditorPage({ card, onSave, onCancel }) {
                   onChange={(e) => {
                     setBody(e.target.value); setDirty(true);
                     const el = e.currentTarget;
+                    const scroller = findScrollParent(el);
+                    const prev = scroller ? scroller.scrollTop : 0;
                     el.style.height = 'auto';
                     el.style.height = `${el.scrollHeight}px`;
+                    if (scroller) scroller.scrollTop = prev;
                   }}
                   onSelect={captureSelection}
                   onKeyUp={captureSelection}

@@ -220,7 +220,7 @@ function TechniqueRow({ technique, color, colorText, fontStack, onUpdate, onDele
 
   return (
     <div
-      className={`group relative flex items-start rounded-md border border-transparent bg-[#1f1f1f] transition-colors hover:border-[#3a3a3a] hover:bg-[#232323] ${
+      className={`group relative flex items-start rounded-md border border-transparent bg-[#1f1f1f] transition-colors select-none hover:border-[#3a3a3a] hover:bg-[#232323] ${
         compact ? 'gap-1 p-1.5' : 'gap-1.5 p-2'
       }`}
       contentEditable={false}
@@ -525,7 +525,7 @@ function Column({ column, onUpdate, onDelete, compact = false }) {
               const r = e.currentTarget.getBoundingClientRect();
               setSizePickerAt({ x: r.left, y: r.bottom + 4 });
             }}
-            className="min-w-0 w-full text-center font-bold leading-tight tracking-wide"
+            className="min-w-0 w-full select-none text-center font-bold leading-tight tracking-wide"
             style={{ color: palette.text, fontFamily: fontStack, fontSize: `${titleSize}px` }}
             title="Right-click to change size or font"
           >
