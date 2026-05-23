@@ -1,22 +1,32 @@
 // Shared serialise / parse helpers for technique card ↔ markdown document.
 
+// Dot colors match MapBlock's COLORS palette exactly so the picker swatches
+// are identical to what the columns show.
 export const CARD_COLOR_OPTIONS = [
-  { value: 'cyan',    dot: 'bg-cyan-500' },
-  { value: 'green',   dot: 'bg-emerald-500' },
-  { value: 'red',     dot: 'bg-red-500' },
-  { value: 'purple',  dot: 'bg-purple-500' },
-  { value: 'orange',  dot: 'bg-orange-500' },
-  { value: 'pink',    dot: 'bg-pink-500' },
-  { value: 'blue',    dot: 'bg-blue-500' },
-  { value: 'yellow',  dot: 'bg-yellow-500' },
-  { value: 'teal',    dot: 'bg-teal-500' },
-  { value: 'indigo',  dot: 'bg-indigo-500' },
-  { value: 'lime',    dot: 'bg-lime-500' },
-  { value: 'rose',    dot: 'bg-rose-500' },
-  { value: 'amber',   dot: 'bg-amber-500' },
-  { value: 'violet',  dot: 'bg-violet-500' },
-  { value: 'sky',     dot: 'bg-sky-500' },
-  { value: 'fuchsia', dot: 'bg-fuchsia-500' },
+  { value: 'red',     dot: 'bg-[#d36868]' },
+  { value: 'ruby',    dot: 'bg-[#b53a3a]' },
+  { value: 'rose',    dot: 'bg-[#e16078]' },
+  { value: 'pink',    dot: 'bg-[#d178b5]' },
+  { value: 'magenta', dot: 'bg-[#d44ec6]' },
+  { value: 'fuchsia', dot: 'bg-[#c850c6]' },
+  { value: 'purple',  dot: 'bg-[#9b7ec8]' },
+  { value: 'violet',  dot: 'bg-[#8a76e0]' },
+  { value: 'indigo',  dot: 'bg-[#7080d4]' },
+  { value: 'blue',    dot: 'bg-[#5b86c8]' },
+  { value: 'sky',     dot: 'bg-[#5fa5d6]' },
+  { value: 'cyan',    dot: 'bg-[#5bb8c8]' },
+  { value: 'teal',    dot: 'bg-[#5db09e]' },
+  { value: 'mint',    dot: 'bg-[#6ed4a9]' },
+  { value: 'emerald', dot: 'bg-[#5db075]' },
+  { value: 'green',   dot: 'bg-[#67b365]' },
+  { value: 'lime',    dot: 'bg-[#a3c95a]' },
+  { value: 'yellow',  dot: 'bg-[#cfa84b]' },
+  { value: 'amber',   dot: 'bg-[#d4a14a]' },
+  { value: 'orange',  dot: 'bg-[#d68c5a]' },
+  { value: 'brown',   dot: 'bg-[#a07458]' },
+  { value: 'stone',   dot: 'bg-[#78716c]' },
+  { value: 'slate',   dot: 'bg-[#64748b]' },
+  { value: 'gray',    dot: 'bg-[#7a7a7a]' },
 ];
 
 // Default body for a new card. Kept intentionally minimal — only the

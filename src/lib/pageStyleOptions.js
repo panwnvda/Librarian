@@ -76,6 +76,7 @@ export const titleColorOptions = [
   { value: 'lime',       label: 'Lime',       text: 'text-lime-500',    bg: 'bg-lime-500',    border: 'border-lime-500/40',    nodeBorder: 'border-lime-500/40 hover:border-lime-400/60 hover:shadow-lime-500/10' },
   { value: 'shamrock',   label: 'Shamrock',   text: 'text-green-500',   bg: 'bg-green-500',   border: 'border-green-500/40',   nodeBorder: 'border-green-500/40 hover:border-green-400/60 hover:shadow-green-500/10' },
   { value: 'green',      label: 'Green',      text: 'text-emerald-500', bg: 'bg-emerald-500', border: 'border-emerald-500/40', nodeBorder: 'border-emerald-500/40 hover:border-emerald-400/60 hover:shadow-emerald-500/10' },
+  { value: 'emerald',   label: 'Emerald',    text: 'text-emerald-500', bg: 'bg-emerald-500', border: 'border-emerald-500/40', nodeBorder: 'border-emerald-500/40 hover:border-emerald-400/60 hover:shadow-emerald-500/10' },
   { value: 'teal',       label: 'Teal',       text: 'text-teal-500',    bg: 'bg-teal-500',    border: 'border-teal-500/40',    nodeBorder: 'border-teal-500/40 hover:border-teal-400/60 hover:shadow-teal-500/10' },
   { value: 'cyan',       label: 'Cyan',       text: 'text-cyan-500',    bg: 'bg-cyan-500',    border: 'border-cyan-500/40',    nodeBorder: 'border-cyan-500/40 hover:border-cyan-400/60 hover:shadow-cyan-500/10' },
   { value: 'sky',        label: 'Sky',        text: 'text-sky-500',     bg: 'bg-sky-500',     border: 'border-sky-500/40',     nodeBorder: 'border-sky-500/40 hover:border-sky-400/60 hover:shadow-sky-500/10' },

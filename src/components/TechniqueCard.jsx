@@ -4,24 +4,35 @@ import CodeBlock from './CodeBlock';
 import MarkdownView from './MarkdownView';
 import { getTitleFontClass } from '../lib/pageStyleOptions';
 
+// Colors are sourced from MapBlock's COLORS palette (same dot/text hex values)
+// so that card accent colors match column colors exactly.
+//   title/circleEmpty  → palette `text`  hex
+//   progress/circleFilled bg → palette `dot` hex
 const COLOR_MAP = {
-  cyan:    { title: 'text-cyan-400',    tag: 'text-cyan-400 border-[#2a2a2a]',    progress: 'bg-cyan-500',    circleEmpty: 'border-[#3a3a3a] text-cyan-400',    circleFilled: 'bg-cyan-500 border-cyan-500 text-slate-900' },
-  green:   { title: 'text-emerald-400', tag: 'text-emerald-400 border-[#2a2a2a]', progress: 'bg-emerald-500', circleEmpty: 'border-[#3a3a3a] text-emerald-400', circleFilled: 'bg-emerald-500 border-emerald-500 text-slate-900' },
-  red:     { title: 'text-red-400',     tag: 'text-red-400 border-[#2a2a2a]',     progress: 'bg-red-500',     circleEmpty: 'border-[#3a3a3a] text-red-400',     circleFilled: 'bg-red-500 border-red-500 text-white' },
-  ruby:    { title: 'text-red-600',     tag: 'text-red-600 border-[#2a2a2a]',     progress: 'bg-red-600',     circleEmpty: 'border-[#3a3a3a] text-red-600',     circleFilled: 'bg-red-600 border-red-600 text-white' },
-  purple:  { title: 'text-purple-400',  tag: 'text-purple-400 border-[#2a2a2a]',  progress: 'bg-purple-500',  circleEmpty: 'border-[#3a3a3a] text-purple-400',  circleFilled: 'bg-purple-500 border-purple-500 text-white' },
-  orange:  { title: 'text-orange-400',  tag: 'text-orange-400 border-[#2a2a2a]',  progress: 'bg-orange-500',  circleEmpty: 'border-[#3a3a3a] text-orange-400',  circleFilled: 'bg-orange-500 border-orange-500 text-slate-900' },
-  pink:    { title: 'text-pink-400',    tag: 'text-pink-400 border-[#2a2a2a]',    progress: 'bg-pink-500',    circleEmpty: 'border-[#3a3a3a] text-pink-400',    circleFilled: 'bg-pink-500 border-pink-500 text-white' },
-  blue:    { title: 'text-blue-400',    tag: 'text-blue-400 border-[#2a2a2a]',    progress: 'bg-blue-500',    circleEmpty: 'border-[#3a3a3a] text-blue-400',    circleFilled: 'bg-blue-500 border-blue-500 text-white' },
-  yellow:  { title: 'text-yellow-400',  tag: 'text-yellow-400 border-[#2a2a2a]',  progress: 'bg-yellow-500',  circleEmpty: 'border-[#3a3a3a] text-yellow-400',  circleFilled: 'bg-yellow-500 border-yellow-500 text-slate-900' },
-  teal:    { title: 'text-teal-400',    tag: 'text-teal-400 border-[#2a2a2a]',    progress: 'bg-teal-500',    circleEmpty: 'border-[#3a3a3a] text-teal-400',    circleFilled: 'bg-teal-500 border-teal-500 text-slate-900' },
-  indigo:  { title: 'text-indigo-400',  tag: 'text-indigo-400 border-[#2a2a2a]',  progress: 'bg-indigo-500',  circleEmpty: 'border-[#3a3a3a] text-indigo-400',  circleFilled: 'bg-indigo-500 border-indigo-500 text-white' },
-  lime:    { title: 'text-lime-400',    tag: 'text-lime-400 border-[#2a2a2a]',    progress: 'bg-lime-500',    circleEmpty: 'border-[#3a3a3a] text-lime-400',    circleFilled: 'bg-lime-500 border-lime-500 text-slate-900' },
-  rose:    { title: 'text-rose-400',    tag: 'text-rose-400 border-[#2a2a2a]',    progress: 'bg-rose-500',    circleEmpty: 'border-[#3a3a3a] text-rose-400',    circleFilled: 'bg-rose-500 border-rose-500 text-white' },
-  amber:   { title: 'text-amber-400',   tag: 'text-amber-400 border-[#2a2a2a]',   progress: 'bg-amber-500',   circleEmpty: 'border-[#3a3a3a] text-amber-400',   circleFilled: 'bg-amber-500 border-amber-500 text-slate-900' },
-  violet:  { title: 'text-violet-400',  tag: 'text-violet-400 border-[#2a2a2a]',  progress: 'bg-violet-500',  circleEmpty: 'border-[#3a3a3a] text-violet-400',  circleFilled: 'bg-violet-500 border-violet-500 text-white' },
-  sky:     { title: 'text-sky-400',     tag: 'text-sky-400 border-[#2a2a2a]',     progress: 'bg-sky-500',     circleEmpty: 'border-[#3a3a3a] text-sky-400',     circleFilled: 'bg-sky-500 border-sky-500 text-slate-900' },
-  fuchsia: { title: 'text-fuchsia-400', tag: 'text-fuchsia-400 border-[#2a2a2a]', progress: 'bg-fuchsia-500', circleEmpty: 'border-[#3a3a3a] text-fuchsia-400', circleFilled: 'bg-fuchsia-500 border-fuchsia-500 text-white' },
+  red:     { title: 'text-[#e89797]', tag: 'text-[#e89797] border-[#2a2a2a]', progress: 'bg-[#d36868]', circleEmpty: 'border-[#3a3a3a] text-[#e89797]', circleFilled: 'bg-[#d36868] border-[#d36868] text-white' },
+  ruby:    { title: 'text-[#e07878]', tag: 'text-[#e07878] border-[#2a2a2a]', progress: 'bg-[#b53a3a]', circleEmpty: 'border-[#3a3a3a] text-[#e07878]', circleFilled: 'bg-[#b53a3a] border-[#b53a3a] text-white' },
+  rose:    { title: 'text-[#f59ca8]', tag: 'text-[#f59ca8] border-[#2a2a2a]', progress: 'bg-[#e16078]', circleEmpty: 'border-[#3a3a3a] text-[#f59ca8]', circleFilled: 'bg-[#e16078] border-[#e16078] text-white' },
+  pink:    { title: 'text-[#e0a8cf]', tag: 'text-[#e0a8cf] border-[#2a2a2a]', progress: 'bg-[#d178b5]', circleEmpty: 'border-[#3a3a3a] text-[#e0a8cf]', circleFilled: 'bg-[#d178b5] border-[#d178b5] text-white' },
+  magenta: { title: 'text-[#e88adf]', tag: 'text-[#e88adf] border-[#2a2a2a]', progress: 'bg-[#d44ec6]', circleEmpty: 'border-[#3a3a3a] text-[#e88adf]', circleFilled: 'bg-[#d44ec6] border-[#d44ec6] text-white' },
+  fuchsia: { title: 'text-[#e288e1]', tag: 'text-[#e288e1] border-[#2a2a2a]', progress: 'bg-[#c850c6]', circleEmpty: 'border-[#3a3a3a] text-[#e288e1]', circleFilled: 'bg-[#c850c6] border-[#c850c6] text-white' },
+  purple:  { title: 'text-[#c0a8e0]', tag: 'text-[#c0a8e0] border-[#2a2a2a]', progress: 'bg-[#9b7ec8]', circleEmpty: 'border-[#3a3a3a] text-[#c0a8e0]', circleFilled: 'bg-[#9b7ec8] border-[#9b7ec8] text-white' },
+  violet:  { title: 'text-[#b3a6f0]', tag: 'text-[#b3a6f0] border-[#2a2a2a]', progress: 'bg-[#8a76e0]', circleEmpty: 'border-[#3a3a3a] text-[#b3a6f0]', circleFilled: 'bg-[#8a76e0] border-[#8a76e0] text-white' },
+  indigo:  { title: 'text-[#a0aee8]', tag: 'text-[#a0aee8] border-[#2a2a2a]', progress: 'bg-[#7080d4]', circleEmpty: 'border-[#3a3a3a] text-[#a0aee8]', circleFilled: 'bg-[#7080d4] border-[#7080d4] text-white' },
+  blue:    { title: 'text-[#86b0e3]', tag: 'text-[#86b0e3] border-[#2a2a2a]', progress: 'bg-[#5b86c8]', circleEmpty: 'border-[#3a3a3a] text-[#86b0e3]', circleFilled: 'bg-[#5b86c8] border-[#5b86c8] text-white' },
+  sky:     { title: 'text-[#8cc8e8]', tag: 'text-[#8cc8e8] border-[#2a2a2a]', progress: 'bg-[#5fa5d6]', circleEmpty: 'border-[#3a3a3a] text-[#8cc8e8]', circleFilled: 'bg-[#5fa5d6] border-[#5fa5d6] text-slate-900' },
+  cyan:    { title: 'text-[#86d4e0]', tag: 'text-[#86d4e0] border-[#2a2a2a]', progress: 'bg-[#5bb8c8]', circleEmpty: 'border-[#3a3a3a] text-[#86d4e0]', circleFilled: 'bg-[#5bb8c8] border-[#5bb8c8] text-slate-900' },
+  teal:    { title: 'text-[#86c8b8]', tag: 'text-[#86c8b8] border-[#2a2a2a]', progress: 'bg-[#5db09e]', circleEmpty: 'border-[#3a3a3a] text-[#86c8b8]', circleFilled: 'bg-[#5db09e] border-[#5db09e] text-slate-900' },
+  mint:    { title: 'text-[#a0e8c8]', tag: 'text-[#a0e8c8] border-[#2a2a2a]', progress: 'bg-[#6ed4a9]', circleEmpty: 'border-[#3a3a3a] text-[#a0e8c8]', circleFilled: 'bg-[#6ed4a9] border-[#6ed4a9] text-slate-900' },
+  emerald: { title: 'text-[#86c89c]', tag: 'text-[#86c89c] border-[#2a2a2a]', progress: 'bg-[#5db075]', circleEmpty: 'border-[#3a3a3a] text-[#86c89c]', circleFilled: 'bg-[#5db075] border-[#5db075] text-slate-900' },
+  green:   { title: 'text-[#90cc8e]', tag: 'text-[#90cc8e] border-[#2a2a2a]', progress: 'bg-[#67b365]', circleEmpty: 'border-[#3a3a3a] text-[#90cc8e]', circleFilled: 'bg-[#67b365] border-[#67b365] text-slate-900' },
+  lime:    { title: 'text-[#c4dd87]', tag: 'text-[#c4dd87] border-[#2a2a2a]', progress: 'bg-[#a3c95a]', circleEmpty: 'border-[#3a3a3a] text-[#c4dd87]', circleFilled: 'bg-[#a3c95a] border-[#a3c95a] text-slate-900' },
+  yellow:  { title: 'text-[#e2c47a]', tag: 'text-[#e2c47a] border-[#2a2a2a]', progress: 'bg-[#cfa84b]', circleEmpty: 'border-[#3a3a3a] text-[#e2c47a]', circleFilled: 'bg-[#cfa84b] border-[#cfa84b] text-slate-900' },
+  amber:   { title: 'text-[#e8c378]', tag: 'text-[#e8c378] border-[#2a2a2a]', progress: 'bg-[#d4a14a]', circleEmpty: 'border-[#3a3a3a] text-[#e8c378]', circleFilled: 'bg-[#d4a14a] border-[#d4a14a] text-slate-900' },
+  orange:  { title: 'text-[#e8a87c]', tag: 'text-[#e8a87c] border-[#2a2a2a]', progress: 'bg-[#d68c5a]', circleEmpty: 'border-[#3a3a3a] text-[#e8a87c]', circleFilled: 'bg-[#d68c5a] border-[#d68c5a] text-white' },
+  brown:   { title: 'text-[#c69f85]', tag: 'text-[#c69f85] border-[#2a2a2a]', progress: 'bg-[#a07458]', circleEmpty: 'border-[#3a3a3a] text-[#c69f85]', circleFilled: 'bg-[#a07458] border-[#a07458] text-white' },
+  stone:   { title: 'text-[#a8a29e]', tag: 'text-[#a8a29e] border-[#2a2a2a]', progress: 'bg-[#78716c]', circleEmpty: 'border-[#3a3a3a] text-[#a8a29e]', circleFilled: 'bg-[#78716c] border-[#78716c] text-white' },
+  slate:   { title: 'text-[#94a3b8]', tag: 'text-[#94a3b8] border-[#2a2a2a]', progress: 'bg-[#64748b]', circleEmpty: 'border-[#3a3a3a] text-[#94a3b8]', circleFilled: 'bg-[#64748b] border-[#64748b] text-white' },
+  gray:    { title: 'text-[#c4c4c4]', tag: 'text-[#c4c4c4] border-[#2a2a2a]', progress: 'bg-[#7a7a7a]', circleEmpty: 'border-[#3a3a3a] text-[#c4c4c4]', circleFilled: 'bg-[#7a7a7a] border-[#7a7a7a] text-white' },
 };
 
 function TechniqueCard({ title, subtitle, tags = [], accentColor = 'cyan', overview, steps = [], commands = [], subsections = [], subCards = [], font = null, onExpandedChange = undefined }) {
