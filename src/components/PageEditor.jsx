@@ -138,6 +138,54 @@ function BlockPageEditor({ page, allPages = [], initialBlocks, updatePage, saveC
     }
   }, [title, titleSize]);
 
+  // Extra markdown shortcuts BlockNote doesn't ship with. The built-in input
+  // rules trigger on whitespace (e.g. typing ``` then SPACE converts to a
+  // code block), but most users instinctively reach for Enter after the
+  // closing fence — same as in GitBook, Notion, or a plain Markdown editor.
+  // This handler watches for those Enter-triggered patterns and runs the
+  // conversion before ProseMirror inserts a new line.
+  useEffect(() => {
+    if (!editor) return;
+    const pmView = editor.prosemirrorView || editor._tiptapEditor?.view;
+    const dom = pmView?.dom;
+    if (!dom) return;
+
+    const handler = (e) => {
+      if (e.key !== 'Enter' || e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return;
+      const cursor = editor.getTextCursorPosition?.();
+      const block = cursor?.block;
+      if (!block || block.type !== 'paragraph') return;
+      const text = (block.content || [])
+        .filter((c) => c.type === 'text')
+        .map((c) => c.text)
+        .join('');
+
+      // ``` or ```lang at the start of a paragraph → code block.
+      const codeMatch = text.match(/^```(\w*)$/);
+      if (codeMatch) {
+        e.preventDefault();
+        e.stopPropagation();
+        const lang = codeMatch[1] || 'text';
+        editor.updateBlock(block, { type: 'codeBlock', props: { language: lang }, content: [] });
+        editor.setTextCursorPosition(block, 'start');
+        return;
+      }
+
+      // --- alone on a paragraph → divider, then put cursor on the next line.
+      if (text === '---') {
+        e.preventDefault();
+        e.stopPropagation();
+        editor.updateBlock(block, { type: 'divider', props: {}, content: [] });
+        const [next] = editor.insertBlocks([{ type: 'paragraph' }], block, 'after');
+        editor.setTextCursorPosition(next, 'start');
+        return;
+      }
+    };
+
+    dom.addEventListener('keydown', handler, true);
+    return () => dom.removeEventListener('keydown', handler, true);
+  }, [editor]);
+
   // The latest blocks BlockNote handed to onChange. Used by the unmount
   // flush below so a quick edit (e.g. apply colour and immediately navigate
   // away) doesn't get lost when the debounce timer is still pending.
