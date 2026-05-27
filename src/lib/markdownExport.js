@@ -171,9 +171,13 @@ export async function exportWorkspaceAsMarkdown() {
     const indent = '  '.repeat(depth + 1);
     summaryLines.push(`${indent}* [${page.title}](${encodePath(`${pageDir}/README.md`)})`);
 
-    // Page README (optional — shows summary).
+    // Page README. For markdown-mode pages (content stored as a raw string),
+    // the README *is* the page body — just prepend the title as an H1.
+    // For block-based pages with a map, fall back to a column-summary.
     const readmeParts = [`# ${page.title}`, ''];
-    if (mapData && mapData.columns?.length) {
+    if (typeof pageContent === 'string' && pageContent.trim()) {
+      readmeParts.push(pageContent.replace(/^[ \t]*#\s+.+\n+/, ''));
+    } else if (mapData && mapData.columns?.length) {
       readmeParts.push('Map of column groupings:');
       readmeParts.push('');
       for (const col of mapData.columns) {
