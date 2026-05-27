@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import MapNode from '../../components/MapNode';
 import CardEditorPage from '../../components/CardEditorPage';
 import DraggableCardList from '../../components/DraggableCardList';
+import MarkdownView from '../../components/MarkdownView';
+import MarkdownEditor from '../../components/MarkdownEditor';
 import { usePageStorage } from '../../hooks/usePageStorage';
 import { useDragScroll } from '../../hooks/useDragScroll';
 import { persistGet, persistSet } from '../../lib/persistentStorage';
@@ -266,7 +268,9 @@ export default function NotesPage({ pageKey }) {
               </div>
             )}
             {meta.description && (
-              <p className={`text-slate-500 ${meta.descriptionFont || 'font-mono'} text-sm mt-3`}>{meta.description}</p>
+              <div className={`text-slate-500 ${meta.descriptionFont || 'font-mono'} text-sm mt-3`}>
+                <MarkdownView>{meta.description}</MarkdownView>
+              </div>
             )}
             <button
               onClick={() => { setDraftMeta(meta); setDraftTagsRaw(meta.tags.join(', ')); setEditingMeta(true); }}
@@ -351,12 +355,14 @@ export default function NotesPage({ pageKey }) {
 
             <div>
               <label className="block text-xs font-mono text-slate-500 mb-1">DESCRIPTION</label>
-              <textarea
-                value={draftMeta.description}
-                onChange={e => setDraftMeta({ ...draftMeta, description: e.target.value })}
-                placeholder="Brief description of this page..."
-                className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-slate-200 placeholder-slate-500 font-mono text-xs focus:outline-none focus:border-slate-500 h-20"
-              />
+              <div className="px-3 py-2 bg-slate-800 border border-slate-700 rounded text-slate-200 focus-within:border-slate-500 min-h-[5rem]">
+                <MarkdownEditor
+                  value={draftMeta.description}
+                  onChange={(v) => setDraftMeta({ ...draftMeta, description: v })}
+                  placeholder="Brief description — markdown formats live as you type"
+                  minHeight={64}
+                />
+              </div>
             </div>
 
             <div>

@@ -3,6 +3,8 @@ import MapNode from '../../components/MapNode';
 import { useDragScroll } from '../../hooks/useDragScroll';
 import { persistGet, persistSet } from '../../lib/persistentStorage';
 import { Plus, X, Pencil, Check } from 'lucide-react';
+import MarkdownView from '../../components/MarkdownView';
+import MarkdownEditor from '../../components/MarkdownEditor';
 import {
   titleColorOptions,
   titleFontOptions,
@@ -164,8 +166,8 @@ export default function HomePage({ pageKey }) {
 
       {/* Description */}
       {meta.description && (
-        <div className="mb-5">
-          <p className={`text-slate-500 ${meta.descriptionFont || 'font-mono'} text-sm`}>{meta.description}</p>
+        <div className={`mb-5 text-slate-500 ${meta.descriptionFont || 'font-mono'} text-sm`}>
+          <MarkdownView>{meta.description}</MarkdownView>
         </div>
       )}
 
@@ -249,9 +251,14 @@ export default function HomePage({ pageKey }) {
 
           <div>
             <label className="block text-xs font-mono text-slate-500 mb-1">DESCRIPTION</label>
-            <textarea value={draft.description} onChange={e => setDraft({ ...draft, description: e.target.value })}
-              placeholder="Brief description of this page..."
-              className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded text-slate-200 placeholder-slate-500 font-mono text-xs focus:outline-none focus:border-slate-500 h-20" />
+            <div className="px-3 py-2 bg-slate-800 border border-slate-700 rounded text-slate-200 focus-within:border-slate-500 min-h-[5rem]">
+              <MarkdownEditor
+                value={draft.description}
+                onChange={(v) => setDraft({ ...draft, description: v })}
+                placeholder="Brief description — markdown formats live as you type"
+                minHeight={64}
+              />
+            </div>
           </div>
 
           <div>
