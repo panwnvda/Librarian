@@ -35,7 +35,12 @@ function getAncestors(page, pages) {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function PageEditor(props) {
-  if (props.page?.mode === 'markdown') {
+  // Route to MarkdownPageEditor when either the page is explicitly marked
+  // markdown mode OR the loaded content is a raw string (which BlockNote
+  // can't consume — that's the legacy/imported shape for markdown pages).
+  const isMarkdown =
+    props.page?.mode === 'markdown' || typeof props.initialBlocks === 'string';
+  if (isMarkdown) {
     return <MarkdownPageEditor {...props} />;
   }
   return <BlockPageEditor {...props} />;
@@ -66,7 +71,7 @@ function BlockPageEditor({ page, allPages = [], initialBlocks, updatePage, saveC
 
   const editor = useCreateBlockNote({
     schema,
-    initialContent: initialBlocks?.length ? initialBlocks : undefined,
+    initialContent: Array.isArray(initialBlocks) && initialBlocks.length ? initialBlocks : undefined,
     // Disable browser spellcheck on the ProseMirror contenteditable at
     // editor-creation time, so we don't need a MutationObserver to fight
     // ProseMirror over the attribute. The previous observer-based fix
