@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { createReactBlockSpec } from '@blocknote/react';
 import TechniqueCard from '@/components/TechniqueCard';
 import CardEditorPage from '@/components/CardEditorPage';
@@ -23,10 +23,16 @@ function CardBlockInner({ block, editor }) {
   const [editing, setEditing] = useState(false);
   const [hovered, setHovered] = useState(false);
 
-  let card = { ...DEFAULTS };
-  try {
-    if (block.props.data) card = { ...DEFAULTS, ...JSON.parse(block.props.data) };
-  } catch {}
+  // Memoize the parse — on a page with 250 cards this otherwise re-parses
+  // ~250 JSON strings on every keystroke in any neighbouring block, since
+  // BlockNote re-runs the render fn for every block on document updates.
+  const card = useMemo(() => {
+    const merged = { ...DEFAULTS };
+    try {
+      if (block.props.data) Object.assign(merged, JSON.parse(block.props.data));
+    } catch {}
+    return merged;
+  }, [block.props.data]);
 
   // Persist edits silently — auto-save shouldn't close the editor. The
   // editor only closes when the user explicitly hits Done/Back/Escape

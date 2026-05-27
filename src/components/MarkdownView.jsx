@@ -1,4 +1,4 @@
-import React, { memo, useState } from 'react';
+import React, { memo, useState, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
@@ -305,8 +305,14 @@ const defaultComponents = {
 
 function MarkdownView({ children, className = '', accent = 'cyan' }) {
   const source = typeof children === 'string' ? children : '';
-  const processed = preprocessMarkdown(preprocessWikilinks(source));
-  const segments = segmentMarkdown(processed);
+  // Memoize the heavy parsing pipeline — wikilink rewrite + sanitisation +
+  // segmentation — on the raw source. Without this every parent re-render
+  // (which happens on every keystroke in the technique card editor) burns
+  // CPU re-parsing the same content for every visible step/overview block.
+  const segments = useMemo(() => {
+    const processed = preprocessMarkdown(preprocessWikilinks(source));
+    return segmentMarkdown(processed);
+  }, [source]);
   return (
     <div className={`markdown-body [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 ${className}`}>
       {segments.map((seg, i) => {
