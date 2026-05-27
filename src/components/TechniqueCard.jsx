@@ -124,7 +124,7 @@ function TechniqueCard({ title, subtitle, tags = [], accentColor = 'cyan', overv
                         <div className="flex-1 text-left">
                           <h5 className={`text-xs font-semibold ${colors.title} ${titleFontClass}`}>{sub.title}</h5>
                           {sub.description && (
-                            <MarkdownView className="text-xs text-slate-500 mt-0.5">{sub.description}</MarkdownView>
+                            <MarkdownView accent={accentColor} className="text-xs text-slate-500 mt-0.5">{sub.description}</MarkdownView>
                           )}
                         </div>
                         <div className="text-slate-600 flex-shrink-0">
@@ -152,7 +152,7 @@ function TechniqueCard({ title, subtitle, tags = [], accentColor = 'cyan', overv
           {overview && (
             <div className="mb-4">
               <h4 className="text-[10px] font-mono text-slate-600 uppercase tracking-wider mb-2">Overview</h4>
-              <MarkdownView className="text-sm text-slate-300">{overview}</MarkdownView>
+              <MarkdownView accent={accentColor} className="text-sm text-slate-300">{overview}</MarkdownView>
             </div>
           )}
 
@@ -175,7 +175,7 @@ function TechniqueCard({ title, subtitle, tags = [], accentColor = 'cyan', overv
                         <span className="text-[10px] font-mono font-bold">{i + 1}</span>
                       </button>
                       <div className={`flex-1 min-w-0 pt-1 transition-opacity ${done ? 'opacity-25' : ''}`}>
-                        <MarkdownView className="text-sm leading-relaxed text-slate-300">{step}</MarkdownView>
+                        <MarkdownView accent={accentColor} className="text-sm leading-relaxed text-slate-300">{step}</MarkdownView>
                       </div>
                     </div>
                   );

@@ -33,6 +33,7 @@ export const FONT_STACKS = {
   'font-title-ubuntu':     "'Ubuntu', sans-serif",
   'font-title-cantarell':  "'Cantarell', sans-serif",
   'font-title-roboto':     "'Roboto', sans-serif",
+  'font-title-roboto-condensed': "'Roboto Condensed', sans-serif",
   'font-title-opensans':   "'Open Sans', sans-serif",
   'font-title-lato':       "'Lato', sans-serif",
   'font-title-poppins':    "'Poppins', sans-serif",

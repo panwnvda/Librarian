@@ -127,6 +127,7 @@ export const titleFontOptions = [
   { value: 'font-title-ubuntu', label: 'Ubuntu' },
   { value: 'font-title-cantarell', label: 'Cantarell' },
   { value: 'font-title-roboto', label: 'Roboto' },
+  { value: 'font-title-roboto-condensed', label: 'Roboto Condensed' },
   { value: 'font-title-opensans', label: 'Open Sans' },
   { value: 'font-title-lato', label: 'Lato' },
   { value: 'font-title-poppins', label: 'Poppins' },

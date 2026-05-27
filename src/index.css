@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=Barlow+Semi+Condensed:wght@400;500;600;700;800&family=Bebas+Neue&family=Exo+2:wght@400;500;600;700;800;900&family=Montserrat:wght@400;500;600;700;800;900&family=Titillium+Web:wght@400;600;700;900&family=Cantarell:wght@400;700&family=Cormorant+Garamond:wght@500;600;700&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&family=DM+Serif+Display:ital@0;1&family=Fira+Code:wght@300;400;500;600;700&family=Fjalla+One&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=IBM+Plex+Serif:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@300;400;500;600;700;800&family=Lato:wght@300;400;700;900&family=Manrope:wght@400;500;600;700;800&family=Noto+Sans:wght@300;400;500;600;700;800&family=Nunito:wght@300;400;500;600;700;800&family=Open+Sans:wght@300;400;500;600;700;800&family=Oswald:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&family=Passion+One:wght@400;700;900&family=Playfair+Display:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&family=Raleway:wght@500;600;700;800&family=Roboto:wght@300;400;500;700;900&family=Sora:wght@400;500;600;700;800&family=Source+Code+Pro:wght@300;400;500;600;700;900&family=Space+Grotesk:wght@400;500;700&family=Syne:wght@500;600;700;800&family=Ubuntu:wght@300;400;500;700&family=Work+Sans:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=Barlow+Semi+Condensed:wght@400;500;600;700;800&family=Bebas+Neue&family=Exo+2:wght@400;500;600;700;800;900&family=Montserrat:wght@400;500;600;700;800;900&family=Titillium+Web:wght@400;600;700;900&family=Cantarell:wght@400;700&family=Cormorant+Garamond:wght@500;600;700&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&family=DM+Serif+Display:ital@0;1&family=Fira+Code:wght@300;400;500;600;700&family=Fjalla+One&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=IBM+Plex+Serif:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@300;400;500;600;700;800&family=Lato:wght@300;400;700;900&family=Manrope:wght@400;500;600;700;800&family=Noto+Sans:wght@300;400;500;600;700;800&family=Nunito:wght@300;400;500;600;700;800&family=Open+Sans:wght@300;400;500;600;700;800&family=Oswald:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&family=Passion+One:wght@400;700;900&family=Playfair+Display:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Poppins:wght@300;400;500;600;700;800&family=Raleway:wght@500;600;700;800&family=Roboto:wght@300;400;500;700;900&family=Roboto+Condensed:wght@300;400;500;700;900&family=Sora:wght@400;500;600;700;800&family=Source+Code+Pro:wght@300;400;500;600;700;900&family=Space+Grotesk:wght@400;500;700&family=Syne:wght@500;600;700;800&family=Ubuntu:wght@300;400;500;700&family=Work+Sans:wght@300;400;500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -259,6 +259,10 @@
 
 .font-title-roboto {
   font-family: 'Roboto', sans-serif;
+}
+
+.font-title-roboto-condensed {
+  font-family: 'Roboto Condensed', sans-serif;
 }
 
 .font-title-opensans {
@@ -668,4 +672,73 @@ body {
 .blocknote-wrapper .bn-editor {
   padding-left: 1px !important;
   padding-right: 1px !important;
+}
+
+/* ─── Markdown live-preview decorations (Obsidian/GitBook-style) ─────────── */
+/* Headings: scale up the WHOLE line (heading line decoration wraps it). The
+   `font-size:inherit` reset on inline tokens stops cm-md-em / cm-md-strong from
+   inheriting heading sizes wrongly when nested inside a heading line. */
+.cm-md-h1 .cm-line, .cm-line.cm-md-h1 { font-size: 1.85em; font-weight: 700; line-height: 1.2; color: #f3f3f3; }
+.cm-md-h2 .cm-line, .cm-line.cm-md-h2 { font-size: 1.5em;  font-weight: 700; line-height: 1.25; color: #f0f0f0; }
+.cm-md-h3 .cm-line, .cm-line.cm-md-h3 { font-size: 1.25em; font-weight: 600; line-height: 1.3; color: #e8e8e8; }
+.cm-md-h4 .cm-line, .cm-line.cm-md-h4 { font-size: 1.12em; font-weight: 600; color: #dcdcdc; }
+.cm-md-h5 .cm-line, .cm-line.cm-md-h5 { font-weight: 600; color: #dcdcdc; }
+.cm-md-h6 .cm-line, .cm-line.cm-md-h6 { font-weight: 600; color: #c4c4c4; }
+
+.cm-md-blockquote {
+  border-left: 2px solid rgba(91, 134, 200, 0.5);
+  padding-left: 0.85em;
+  background: rgba(255, 255, 255, 0.018);
+  color: #b4b4b4;
+  font-style: italic;
+}
+
+.cm-md-em      { font-style: italic; color: #e0e0e0; }
+.cm-md-strong  { font-weight: 700; color: #f0f0f0; }
+.cm-md-strike  { text-decoration: line-through; color: #7a7a7a; }
+
+.cm-md-inline-code {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  background: #232323;
+  border: 1px solid #2a2a2a;
+  border-radius: 3px;
+  padding: 0 4px;
+  color: #e1bb6a;
+  font-size: 0.9em;
+}
+
+.cm-md-link {
+  color: #86b0e3;
+  text-decoration: underline;
+  text-decoration-color: rgba(134, 176, 227, 0.4);
+}
+
+/* Fenced code blocks rendered live inside the markdown editor. Each line of
+   the block gets a dark background + monospace font; first/last lines round
+   the corners. When the cursor enters the block, the original ``` fences
+   re-appear (their hide decorations get suppressed) but the styling stays. */
+.cm-md-code-line .cm-line,
+.cm-line.cm-md-code-line {
+  background: #181818;
+  border-left: 1px solid #2a2a2a;
+  border-right: 1px solid #2a2a2a;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.92em;
+  color: #e8e8e8;
+  padding-left: 0.85em !important;
+  padding-right: 0.85em !important;
+}
+.cm-md-code-first .cm-line,
+.cm-line.cm-md-code-first {
+  border-top: 1px solid #2a2a2a;
+  border-top-left-radius: 6px;
+  border-top-right-radius: 6px;
+  padding-top: 0.5em !important;
+}
+.cm-md-code-last .cm-line,
+.cm-line.cm-md-code-last {
+  border-bottom: 1px solid #2a2a2a;
+  border-bottom-left-radius: 6px;
+  border-bottom-right-radius: 6px;
+  padding-bottom: 0.5em !important;
 }

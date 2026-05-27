@@ -32,6 +32,11 @@ scripts/
 # scripts in scripts/ and imported into the app from disk. Personal content
 # rather than app source; excluded from the repo.
 library-packs/
+library-packs.zip
+
+# GitBook-style Markdown export of a personal red team notebook. Generated
+# from .library files via the app's export; personal content, not app source.
+red-team-notebook-md/
 
 # Editor directories and files
 .vscode/*

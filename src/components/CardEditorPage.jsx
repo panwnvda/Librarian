@@ -5,11 +5,10 @@ import {
   Bold, Italic, Strikethrough, Code, Code2, Link2,
   List, ListOrdered, ListChecks,
   Quote, Minus,
-  Eye, Pencil, SquareSplitHorizontal,
   Undo2, Redo2,
   Target,
 } from 'lucide-react';
-import MarkdownView from './MarkdownView';
+import MarkdownEditor from './MarkdownEditor';
 import { titleFontOptions } from '../lib/pageStyleOptions';
 import { CARD_COLOR_OPTIONS, BLANK_BODY, cardToMarkdown, markdownToCard } from '../lib/cardMarkdown';
 import { FONT_STACKS } from '../hooks/useGlobalFont';
@@ -195,21 +194,6 @@ const ColorBtn = memo(({ label, title, onPick, kind }) => {
   );
 });
 
-const ViewBtn = memo(({ mode, current, setMode, icon: Icon, label }) => (
-  <button
-    type="button"
-    onClick={() => setMode(mode)}
-    className={`flex items-center gap-1.5 px-2.5 py-1 text-[11.5px] transition-colors ${
-      current === mode
-        ? 'bg-white/[0.08] text-[#e8e8e8]'
-        : 'text-[#9a9a9a] hover:bg-white/[0.045] hover:text-[#c4c4c4]'
-    }`}
-  >
-    <Icon className="h-3 w-3" />
-    {label}
-  </button>
-));
-
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function CardEditorPage({ card, onSave, onCancel }) {
   const [title, setTitle]           = useState('');
@@ -218,10 +202,9 @@ export default function CardEditorPage({ card, onSave, onCancel }) {
   const [body, setBody]             = useState(BLANK_BODY);
   const [selectedColor, setSelectedColor] = useState('cyan');
   const [selectedFont, setSelectedFont]   = useState('');
-  const [viewMode, setViewMode]     = useState('split');
   const [dirty, setDirty]           = useState(false);
 
-  const textareaRef = useRef(null);
+  const editorRef = useRef(null);
 
   // Seed state from `card` exactly once, on mount. CardEditorPage is
   // unmounted/remounted by its parent (CardBlockInner) whenever `editing`
@@ -247,139 +230,62 @@ export default function CardEditorPage({ card, onSave, onCancel }) {
       setBody(BLANK_BODY); setSelectedColor('cyan'); setSelectedFont('');
     }
     setDirty(false);
-    requestAnimationFrame(() => {
-      const el = textareaRef.current;
-      if (el) {
-        try { el.setSelectionRange(0, 0); } catch {}
-        el.scrollTop = 0;
-        el.scrollIntoView?.({ block: 'start', inline: 'nearest' });
-      }
-    });
   }, []);
 
-  // ── Text helpers ──────────────────────────────────────────────────────────
+  // ── Text helpers — all dispatch through the MarkdownEditor's ref so they
+  // operate on the live CodeMirror view. CodeMirror tracks selection itself,
+  // so we don't need a saved-selection mirror anymore.
   const insertWrap = useCallback((before, after = before) => {
-    const el = textareaRef.current;
-    if (!el) return;
-    const { selectionStart: s, selectionEnd: e } = el;
-    const sel = body.slice(s, e);
-    const next = body.slice(0, s) + before + sel + after + body.slice(e);
-    setBody(next); setDirty(true);
-    requestAnimationFrame(() => {
-      el.focus({ preventScroll: true });
-      el.setSelectionRange(s + before.length, s + before.length + sel.length);
-    });
-  }, [body]);
+    editorRef.current?.wrap(before, after);
+  }, []);
 
   const insertLinePrefix = useCallback((prefix) => {
-    const el = textareaRef.current;
-    if (!el) return;
-    const s = el.selectionStart;
-    let ls = s;
-    while (ls > 0 && body[ls - 1] !== '\n') ls--;
-    const next = body.slice(0, ls) + prefix + body.slice(ls);
-    setBody(next); setDirty(true);
-    requestAnimationFrame(() => {
-      el.focus({ preventScroll: true });
-      el.setSelectionRange(s + prefix.length, s + prefix.length);
-    });
-  }, [body]);
-
-  const insertCodeFence = useCallback(() => {
-    const el = textareaRef.current;
-    if (!el) return;
-    const s = el.selectionStart; const e = el.selectionEnd;
-    const sel = body.slice(s, e);
-    const block = `\n\`\`\`bash\n${sel || 'code here'}\n\`\`\`\n`;
-    setBody(body.slice(0, s) + block + body.slice(e)); setDirty(true);
-    requestAnimationFrame(() => {
-      el.focus({ preventScroll: true });
-      const cs = s + 8;
-      el.setSelectionRange(cs, cs + (sel || 'code here').length);
-    });
-  }, [body]);
-
-  const insertHRule = useCallback(() => {
-    const el = textareaRef.current;
-    if (!el) return;
-    const s = el.selectionStart;
-    const block = '\n\n---\n\n';
-    setBody(body.slice(0, s) + block + body.slice(s)); setDirty(true);
-    requestAnimationFrame(() => { el.focus({ preventScroll: true }); el.setSelectionRange(s + block.length, s + block.length); });
-  }, [body]);
-
-  // The textarea's selectionStart/End can get clobbered (set to 0/0) when the
-  // user clicks a popover button — even with mousedown preventDefault, some
-  // browsers reset selection on focus changes. We mirror the last known good
-  // selection into a ref via onSelect on the textarea and read from there.
-  const savedSelectionRef = useRef({ start: 0, end: 0 });
-  const captureSelection = useCallback(() => {
-    const el = textareaRef.current;
-    if (el && document.activeElement === el) {
-      savedSelectionRef.current = { start: el.selectionStart, end: el.selectionEnd };
-    }
+    editorRef.current?.insertLinePrefix(prefix);
   }, []);
 
-  // Wrap the selection (or a placeholder if empty) in an HTML span with the
-  // given style attribute. Reads from the saved-selection ref so it works
-  // even when the textarea has been blurred by clicking the picker.
+  const insertCodeFence = useCallback(() => {
+    const ed = editorRef.current;
+    if (!ed) return;
+    const { from, to, text } = ed.getSelection();
+    const sel = text || 'code here';
+    const block = `\n\`\`\`bash\n${sel}\n\`\`\`\n`;
+    ed.insertAt(from, to, block, from + 8 + sel.length);
+  }, []);
+
+  const insertHRule = useCallback(() => {
+    const ed = editorRef.current;
+    if (!ed) return;
+    const { from } = ed.getSelection();
+    const block = '\n\n---\n\n';
+    ed.insertAt(from, from, block, from + block.length);
+  }, []);
+
+  // Wrap the current selection (or a placeholder) in an HTML span with the
+  // given style attribute. Used by the font/color toolbar.
   const wrapSpan = useCallback((styleAttr, placeholder = 'text') => {
-    const el = textareaRef.current;
-    if (!el) return;
-    const { start: s, end: e } = savedSelectionRef.current;
-    const sel = body.slice(s, e) || placeholder;
+    const ed = editorRef.current;
+    if (!ed) return;
+    const { from, to, text } = ed.getSelection();
+    const sel = text || placeholder;
     const before = `<span style="${styleAttr}">`;
     const after = '</span>';
-    const next = body.slice(0, s) + before + sel + after + body.slice(e);
-    setBody(next); setDirty(true);
-    const newStart = s + before.length;
-    const newEnd = newStart + sel.length;
-    savedSelectionRef.current = { start: newStart, end: newEnd };
-    requestAnimationFrame(() => {
-      el.focus({ preventScroll: true });
-      el.setSelectionRange(newStart, newEnd);
-    });
-  }, [body]);
+    ed.insertAt(from, to, before + sel + after, from + before.length + sel.length);
+  }, []);
 
   const applyFontFamily  = useCallback((stack)  => stack && wrapSpan(`font-family: ${stack}`), [wrapSpan]);
   const applyFontSize    = useCallback((size)   => size  && wrapSpan(`font-size: ${size}px`), [wrapSpan]);
   const applyTextColor   = useCallback((color)  => color && wrapSpan(`color: ${color}`),     [wrapSpan]);
   const applyHighlight   = useCallback((color)  => color && wrapSpan(`background-color: ${color}; padding: 0 0.15em; border-radius: 2px`), [wrapSpan]);
 
-  // Inserts the step delimiter token literally at the cursor (or replacing
-  // the current selection). No newlines added, no placeholder text, no jump
-  // to the Steps section — the user controls where the token lands.
+  // Inserts the step delimiter token at the cursor (or replacing the current
+  // selection). The token is what cardMarkdown.js uses to split steps.
   const insertStep = useCallback(() => {
-    const el = textareaRef.current;
-    if (!el) return;
+    const ed = editorRef.current;
+    if (!ed) return;
     const STEP_TOKEN = '<!--step-->';
-    const hasFocus = document.activeElement === el;
-    const s = hasFocus ? el.selectionStart : savedSelectionRef.current.start;
-    const e = hasFocus ? el.selectionEnd : savedSelectionRef.current.end;
-    const next = body.slice(0, s) + STEP_TOKEN + body.slice(e);
-    setBody(next); setDirty(true);
-    const newCaret = s + STEP_TOKEN.length;
-    savedSelectionRef.current = { start: newCaret, end: newCaret };
-    requestAnimationFrame(() => {
-      el.focus({ preventScroll: true });
-      el.setSelectionRange(newCaret, newCaret);
-    });
-  }, [body]);
-
-  const handleKeyDown = useCallback((e) => {
-    const mod = e.metaKey || e.ctrlKey;
-    if (mod && e.key.toLowerCase() === 'b') { e.preventDefault(); insertWrap('**'); }
-    else if (mod && e.key.toLowerCase() === 'i') { e.preventDefault(); insertWrap('*'); }
-    else if (mod && e.key === '`') { e.preventDefault(); insertWrap('`'); }
-    else if (mod && e.key.toLowerCase() === 'k') { e.preventDefault(); insertWrap('[', '](url)'); }
-    else if (e.key === 'Tab' && !e.shiftKey) {
-      e.preventDefault();
-      const el = textareaRef.current;
-      const s = el.selectionStart; const en = el.selectionEnd;
-      setBody(body.slice(0, s) + '  ' + body.slice(en)); setDirty(true);
-      requestAnimationFrame(() => el.setSelectionRange(s + 2, s + 2));
-    }
-  }, [body, insertWrap]);
+    const { from, to } = ed.getSelection();
+    ed.insertAt(from, to, STEP_TOKEN, from + STEP_TOKEN.length);
+  }, []);
 
   // Save-state machine for the manual Save button feedback ('idle' | 'saved'
   // for the green flash). Auto-save still keeps the dirty indicator in sync.
@@ -423,34 +329,10 @@ export default function CardEditorPage({ card, onSave, onCancel }) {
     return () => { if (dirtyRef.current) saveRef.current?.(); };
   }, []);
 
-  // Keep the textarea sized to its content. Re-fits on every body change
-  // and on view-mode toggles so toolbar inserts (which mutate `body`)
-  // grow the editor rather than hiding overflow inside a fixed-height pane.
-  //
-  // The 'auto' → scrollHeight two-step is necessary to *shrink* the textarea
-  // when content is deleted (otherwise scrollHeight is whatever the textarea
-  // is currently sized to, not what the content actually needs). The downside
-  // is that 'auto' collapses the element for one paint, which shifts every
-  // following block up and changes the scroll-container's scrollTop. We
-  // snapshot the container's scrollTop before the resize and restore it after
-  // so the user's viewport stays put no matter what they edit.
-  useEffect(() => {
-    const el = textareaRef.current;
-    if (!el) return;
-    const scroller = findScrollParent(el);
-    const prev = scroller ? scroller.scrollTop : 0;
-    el.style.height = 'auto';
-    el.style.height = `${el.scrollHeight}px`;
-    if (scroller) scroller.scrollTop = prev;
-  }, [body, viewMode]);
-
   const onRootKeyDown = useCallback((e) => {
     if ((e.metaKey || e.ctrlKey) && e.key === 's') { e.preventDefault(); handleSave(); }
     if (e.key === 'Escape') onCancel();
   }, [handleSave, onCancel]);
-
-  const showEdit    = viewMode === 'edit'    || viewMode === 'split';
-  const showPreview = viewMode === 'preview' || viewMode === 'split';
 
   return (
     <div
@@ -577,12 +459,6 @@ export default function CardEditorPage({ card, onSave, onCancel }) {
         <ToolBtn icon={Link2} title="Link (⌘K)" onClick={() => insertWrap('[', '](url)')} />
 
         <div className="flex-1" />
-
-        <div className="flex items-center overflow-hidden rounded border border-[#2a2a2a]">
-          <ViewBtn mode="edit"    current={viewMode} setMode={setViewMode} icon={Pencil}               label="Edit" />
-          <ViewBtn mode="split"   current={viewMode} setMode={setViewMode} icon={SquareSplitHorizontal} label="Split" />
-          <ViewBtn mode="preview" current={viewMode} setMode={setViewMode} icon={Eye}                  label="Preview" />
-        </div>
       </div>
 
       {/* ══ Canvas ═══════════════════════════════════════════════════════════ */}
@@ -634,62 +510,21 @@ export default function CardEditorPage({ card, onSave, onCancel }) {
               </div>
             </div>
 
-            {/* Document body — textarea auto-grows with content so the page
-                scrolls (Google Docs feel) instead of an inner scrollbar
-                appearing inside a fixed-height editor pane. */}
-            <div className={`flex flex-1 items-stretch ${viewMode === 'split' ? 'divide-x divide-[#262626]' : ''}`}>
-              {showEdit && (
-                <textarea
-                  ref={textareaRef}
-                  value={body}
-                  onChange={(e) => {
-                    setBody(e.target.value); setDirty(true);
-                    const el = e.currentTarget;
-                    const scroller = findScrollParent(el);
-                    const prev = scroller ? scroller.scrollTop : 0;
-                    el.style.height = 'auto';
-                    el.style.height = `${el.scrollHeight}px`;
-                    if (scroller) scroller.scrollTop = prev;
-                  }}
-                  onSelect={captureSelection}
-                  onKeyUp={captureSelection}
-                  onMouseUp={captureSelection}
-                  onKeyDown={handleKeyDown}
-                  spellCheck={false}
-                  autoFocus={!card}
-                  placeholder="Start writing…"
-                  // `w-1/2 min-w-0` + `basis-0` keeps the two panes exactly
-                  // 50-50 even when the preview contains very wide content
-                  // (long code lines, tables) that would otherwise force
-                  // `flex-1` to grow this pane and shrink the other.
-                  className={`block resize-none overflow-hidden bg-transparent text-[#d4d4d4] placeholder-[#5a5a5a] focus:outline-none ${
-                    viewMode === 'split' ? 'w-1/2 min-w-0 flex-shrink-0 flex-grow-0 basis-1/2' : 'flex-1'
-                  }`}
-                  style={{
-                    padding: '2.5rem 3.5rem',
-                    fontFamily: '"JetBrains Mono", "Fira Code", monospace',
-                    fontSize: '13.5px',
-                    lineHeight: '1.85',
-                    minHeight: '500px',
-                  }}
-                />
-              )}
-              {showPreview && (
-                <div
-                  className={`overflow-x-auto ${
-                    viewMode === 'split' ? 'w-1/2 min-w-0 flex-shrink-0 flex-grow-0 basis-1/2' : 'flex-1'
-                  }`}
-                  style={{ padding: '2.5rem 3.5rem', minHeight: '500px' }}
-                >
-                  {body?.trim() ? (
-                    <MarkdownView>{body}</MarkdownView>
-                  ) : (
-                    <p className="text-[14px] italic text-[#5a5a5a]" style={{ fontFamily: 'Inter, sans-serif' }}>
-                      Nothing to preview yet.
-                    </p>
-                  )}
-                </div>
-              )}
+            {/* Document body — live-preview Markdown editor. Type `# Heading`
+                and the line styles as a heading as soon as the cursor leaves
+                the line. No split-view; what you see is what you get. */}
+            <div
+              className="flex-1"
+              style={{ padding: '2.5rem 3.5rem', minHeight: '500px' }}
+            >
+              <MarkdownEditor
+                ref={editorRef}
+                value={body}
+                onChange={(v) => { setBody(v); setDirty(true); }}
+                autoFocus={!card}
+                placeholder="Start writing…"
+                minHeight={500}
+              />
             </div>
           </div>
         </div>

@@ -8,6 +8,8 @@ import {
 } from 'lucide-react';
 import * as Collapsible from '@radix-ui/react-collapsible';
 import { exportWorkspace, importWorkspace } from '@/lib/pageStore';
+import { downloadWorkspaceAsMarkdown } from '@/lib/markdownExport';
+import { importMarkdownFile } from '@/lib/markdownImport';
 import { renderIcon } from '@/lib/iconRegistry';
 
 // ─── FloatingMenu ─────────────────────────────────────────────────────────────
@@ -552,20 +554,24 @@ export default function Sidebar({ getChildren, createPage, updatePage, deletePag
     movePage(draggedId, parentId, insertAt);
   };
 
-  const handleExport = async () => {
+  const handleExport = async (format = 'library') => {
     setSettingsOpen(false);
     setIoStatus('exporting');
     try {
-      const data = await exportWorkspace();
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `librarian-${new Date().toISOString().slice(0, 10)}.library`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      if (format === 'markdown') {
+        await downloadWorkspaceAsMarkdown();
+      } else {
+        const data = await exportWorkspace();
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `librarian-${new Date().toISOString().slice(0, 10)}.library`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
       setIoStatus('ok');
     } catch {
       setIoStatus('error');
@@ -580,8 +586,14 @@ export default function Sidebar({ getChildren, createPage, updatePage, deletePag
     setSettingsOpen(false);
     setIoStatus('importing');
     try {
-      const text = await file.text();
-      const data = JSON.parse(text);
+      const lower = (file.name || '').toLowerCase();
+      let data;
+      if (lower.endsWith('.md') || lower.endsWith('.markdown') || lower.endsWith('.zip')) {
+        data = await importMarkdownFile(file);
+      } else {
+        const text = await file.text();
+        data = JSON.parse(text);
+      }
       await importWorkspace(data);
       setIoStatus('ok');
       window.location.hash = '/';
@@ -749,20 +761,28 @@ export default function Sidebar({ getChildren, createPage, updatePage, deletePag
           {settingsOpen && (
             <div className="absolute bottom-full left-0 z-50 mb-1 w-56 overflow-hidden rounded-lg border border-[#373737] bg-[#252525] py-1 shadow-2xl">
               <button
-                onClick={handleExport}
+                onClick={() => handleExport('library')}
                 className="flex w-full items-center gap-2.5 px-3 py-1.5 text-[13px] text-[#c4c4c4] transition-colors hover:bg-white/[0.05]"
               >
                 <Download className="h-3.5 w-3.5 text-[#7a7a7a]" />
-                Export workspace
+                Export as .library
               </button>
+              <button
+                onClick={() => handleExport('markdown')}
+                className="flex w-full items-center gap-2.5 px-3 py-1.5 text-[13px] text-[#c4c4c4] transition-colors hover:bg-white/[0.05]"
+              >
+                <Download className="h-3.5 w-3.5 text-[#7a7a7a]" />
+                Export as Markdown
+              </button>
+              <div className="my-1 h-px bg-white/[0.06]" />
               <button
                 onClick={() => importRef.current?.click()}
                 className="flex w-full items-center gap-2.5 px-3 py-1.5 text-[13px] text-[#c4c4c4] transition-colors hover:bg-white/[0.05]"
               >
                 <Upload className="h-3.5 w-3.5 text-[#7a7a7a]" />
-                Import workspace
+                Import (.library / .md / .zip)
               </button>
-              <input ref={importRef} type="file" accept=".library,.json" className="hidden" onChange={handleImport} />
+              <input ref={importRef} type="file" accept=".library,.json,.md,.markdown,.zip" className="hidden" onChange={handleImport} />
             </div>
           )}
         </div>
