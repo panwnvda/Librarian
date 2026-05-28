@@ -16,11 +16,15 @@ export async function savePages(pages) {
   await persistSet(PAGES_KEY, pages);
 }
 
-export async function createPage({ title = 'Untitled', parentId = null, icon = null, cover = null } = {}) {
+export async function createPage({ title = 'Untitled', parentId = null, icon = null, cover = null, mode = 'markdown' } = {}) {
   const pages = await loadPages();
   const siblings = pages.filter((p) => p.parentId === parentId);
   const order = siblings.length > 0 ? Math.max(...siblings.map((p) => p.order)) + 1 : 0;
 
+  // New pages default to markdown mode — the live-preview CodeMirror editor
+  // with full inline rendering for headings, lists, callouts, fenced code,
+  // etc. Callers that need the BlockNote block editor (e.g. for inserting
+  // technique cards or attack maps) can pass `mode: 'block'` explicitly.
   const page = {
     id: newId(),
     title,
@@ -28,6 +32,7 @@ export async function createPage({ title = 'Untitled', parentId = null, icon = n
     cover,
     parentId,
     order,
+    mode: mode === 'block' ? undefined : 'markdown',
     createdAt: Date.now(),
     updatedAt: Date.now(),
   };
