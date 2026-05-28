@@ -45,19 +45,48 @@ const cmTheme = EditorView.theme({
 }, { dark: true });
 
 // Heading sizes flow from the line decoration (cm-md-h1, …) so we don't
-// double-apply font-size here. The remaining inline tokens stay subtle so
+// double-apply font-size here. The remaining markdown tokens stay subtle so
 // they don't fight the live-preview styling for the same content.
+//
+// Tags below `// ── code tokens ──` light up code INSIDE fenced ``` blocks.
+// @codemirror/lang-markdown nests the inner language's parser (via
+// codeLanguages: languages) and emits the standard Lezer highlight tags
+// (keyword, string, comment, ...). Without these rules code rendered as
+// plain text. Palette matches the card editor's CodeBlock and toolkit
+// Shiki theme so the same snippet looks identical wherever it appears.
 const mdHighlight = HighlightStyle.define([
+  // ── markdown-level tokens ─────────────────────────────────────────────
   { tag: t.monospace, color: '#e1bb6a', fontFamily: '"JetBrains Mono", "Fira Code", monospace' },
   { tag: t.link, color: '#86b0e3' },
   { tag: t.url,  color: '#86b0e3', textDecoration: 'underline' },
   { tag: t.quote, color: '#a0a0a0', fontStyle: 'italic' },
   { tag: t.list,  color: '#7a7a7a' },
-  // Markdown syntax markers — dim them so when the cursor reveals them they
-  // don't feel jarring against the styled text on the rest of the line.
   { tag: t.processingInstruction, color: '#5a5a5a' },
   { tag: t.contentSeparator,      color: '#3a3a3a' },
   { tag: t.meta,                  color: '#5a5a5a' },
+  // ── code tokens (inside ``` fenced blocks) ────────────────────────────
+  { tag: [t.comment, t.lineComment, t.blockComment, t.docComment],
+    color: '#64748b', fontStyle: 'italic' },
+  { tag: [t.string, t.special(t.string), t.regexp, t.character],
+    color: '#fde68a' },
+  { tag: [t.number, t.integer, t.float, t.bool, t.null],
+    color: '#fdba74' },
+  { tag: [t.keyword, t.controlKeyword, t.operatorKeyword, t.modifier, t.definitionKeyword],
+    color: '#6ee7b7' },
+  { tag: [t.typeName, t.className, t.namespace, t.self],
+    color: '#f0abfc' },
+  { tag: [t.variableName, t.propertyName, t.attributeName],
+    color: '#7dd3fc' },
+  { tag: [t.function(t.variableName), t.function(t.propertyName), t.macroName],
+    color: '#f0abfc' },
+  { tag: [t.operator, t.punctuation, t.bracket, t.brace, t.paren, t.derefOperator, t.separator],
+    color: '#94a3b8' },
+  { tag: [t.tagName, t.angleBracket],
+    color: '#7dd3fc' },
+  { tag: [t.escape, t.special(t.escape)],
+    color: '#fde68a', fontWeight: 'bold' },
+  { tag: [t.invalid],
+    color: '#e89797', fontStyle: 'italic' },
 ]);
 
 const MarkdownEditor = forwardRef(function MarkdownEditor({
