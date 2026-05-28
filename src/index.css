@@ -403,8 +403,20 @@ html, body, #root {
   position: relative !important;
   color: #e8e8e8 !important;
   overflow: hidden !important;       /* keep the rounded corners crisp */
+  /* BlockNote's base `.bn-block-content` rule is `display:flex` (row), which
+     stacks the header wrapper and the <pre> side-by-side — that's the
+     "lighter gray box to the side" the user kept seeing. Force a column so
+     the header sits ABOVE the code, like the card editor's CodeBlock. */
+  display: flex !important;
+  flex-direction: column !important;
+  padding: 0 !important;
   user-select: text !important;
   -webkit-user-select: text !important;
+}
+.bn-editor .bn-block-content[data-content-type="codeBlock"] > div:has(> select),
+.bn-editor .bn-block-content[data-content-type="codeBlock"] > pre {
+  width: 100% !important;
+  flex-shrink: 0 !important;
 }
 .bn-editor .bn-block-content[data-content-type="codeBlock"] > pre {
   padding: 16px !important;          /* matches CodeBlock's `p-4` */
