@@ -186,6 +186,58 @@ function BlockPageEditor({ page, allPages = [], initialBlocks, updatePage, saveC
     return () => dom.removeEventListener('keydown', handler, true);
   }, [editor]);
 
+  // Inject a copy button into every code block's header bar so BlockNote
+  // code blocks match the card editor's CodeBlock component (which always
+  // shows a copy icon top-right). BlockNote re-renders blocks on edit, so
+  // we watch the editor DOM with a MutationObserver and re-attach buttons
+  // whenever a code block appears or its header gets re-created.
+  useEffect(() => {
+    if (!editor) return;
+    const pmView = editor.prosemirrorView || editor._tiptapEditor?.view;
+    const root = pmView?.dom;
+    if (!root) return;
+
+    const COPY_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+    const CHECK_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+
+    const ensureButton = (codeBlockEl) => {
+      const header = codeBlockEl.querySelector(':scope > div:has(> select)');
+      if (!header) return;
+      if (header.querySelector('.bn-copy-btn')) return;
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'bn-copy-btn';
+      btn.title = 'Copy code';
+      btn.setAttribute('contenteditable', 'false');
+      btn.innerHTML = COPY_SVG;
+      btn.addEventListener('mousedown', (e) => e.preventDefault());
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const pre = codeBlockEl.querySelector(':scope > pre');
+        const text = pre ? pre.innerText : '';
+        try {
+          await navigator.clipboard.writeText(text);
+          btn.classList.add('copied');
+          btn.innerHTML = CHECK_SVG;
+          setTimeout(() => {
+            btn.classList.remove('copied');
+            btn.innerHTML = COPY_SVG;
+          }, 1500);
+        } catch {}
+      });
+      header.appendChild(btn);
+    };
+
+    const scan = () => {
+      root.querySelectorAll('.bn-block-content[data-content-type="codeBlock"]').forEach(ensureButton);
+    };
+
+    scan();
+    const obs = new MutationObserver(() => scan());
+    obs.observe(root, { childList: true, subtree: true });
+    return () => obs.disconnect();
+  }, [editor]);
+
   // The latest blocks BlockNote handed to onChange. Used by the unmount
   // flush below so a quick edit (e.g. apply colour and immediately navigate
   // away) doesn't get lost when the debounce timer is still pending.

@@ -414,55 +414,80 @@ html, body, #root {
   user-select: text !important;
   -webkit-user-select: text !important;
 }
-/* Language picker — a real-looking pill button at the top-right of the code block.
-   BlockNote wraps the <select> in a <div contenteditable="false">. */
+/* Make BlockNote code blocks look like the card editor's CodeBlock component:
+   a header bar across the top (language label on the left, copy button on the
+   right) and the code body below. The language picker <select> becomes the
+   label — sit-flat, no pill border. */
 .bn-editor .bn-block-content[data-content-type="codeBlock"] > div:has(> select) {
-  position: absolute !important;
-  top: 8px !important;
-  right: 10px !important;
-  z-index: 5 !important;
+  position: static !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  background: #1d1d1d !important;
+  border-bottom: 1px solid #262626 !important;
+  padding: 4px 12px !important;
+  margin: 0 !important;
+  z-index: 1 !important;
   pointer-events: auto !important;
+  border-radius: 8px 8px 0 0 !important;
 }
 .bn-editor .bn-block-content[data-content-type="codeBlock"] > div > select {
   opacity: 1 !important;
-  background: rgba(255,255,255,0.04) !important;
-  border: 1px solid #2f2f2f !important;
-  border-radius: 6px !important;
-  color: #c4c4c4 !important;
-  font-size: 11.5px !important;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  color: #6e6e6e !important;
+  font-size: 11px !important;
   font-weight: 500 !important;
   font-family: 'JetBrains Mono', 'Fira Code', monospace !important;
-  padding: 3px 22px 3px 8px !important;
+  padding: 2px 18px 2px 0 !important;
   cursor: pointer !important;
   outline: none !important;
   position: static !important;
-  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease !important;
-  /* Hide default arrow, draw our own as a background image */
+  transition: color 0.15s ease !important;
   appearance: none !important;
   -webkit-appearance: none !important;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23a0a0a0' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'></polyline></svg>") !important;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23808080' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'></polyline></svg>") !important;
   background-repeat: no-repeat !important;
-  background-position: right 6px center !important;
+  background-position: right 4px center !important;
   background-size: 9px !important;
 }
 .bn-editor .bn-block-content[data-content-type="codeBlock"] > div > select:hover {
-  background-color: rgba(255,255,255,0.07) !important;
-  border-color: #3a3a3a !important;
-  color: #e8e8e8 !important;
-}
-.bn-editor .bn-block-content[data-content-type="codeBlock"] > div > select:focus {
-  background-color: rgba(255,255,255,0.08) !important;
-  border-color: #5b86c8 !important;
-  color: #e8e8e8 !important;
+  color: #c4c4c4 !important;
 }
 .bn-editor .bn-block-content[data-content-type="codeBlock"] > div > select > option {
   background: #1f1f1f !important;
   color: #e8e8e8 !important;
   font-weight: 400 !important;
 }
-/* Bump the code padding so text doesn't sit under the picker pill */
+/* Code body sits right below the header, no top padding under the bar */
 .bn-editor .bn-block-content[data-content-type="codeBlock"] > pre {
   padding: 14px 16px 16px !important;
+}
+
+/* Copy button — injected by PageEditor at runtime as a child of the
+   language-picker header. Positioned at the far right of the bar. */
+.bn-editor .bn-block-content[data-content-type="codeBlock"] > div:has(> select) > .bn-copy-btn {
+  margin-left: auto !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 22px !important;
+  height: 22px !important;
+  border-radius: 4px !important;
+  background: transparent !important;
+  border: none !important;
+  color: #6e6e6e !important;
+  cursor: pointer !important;
+  padding: 0 !important;
+  transition: color 0.15s ease, background 0.15s ease !important;
+}
+.bn-editor .bn-block-content[data-content-type="codeBlock"] > div:has(> select) > .bn-copy-btn:hover {
+  color: #c4c4c4 !important;
+  background: rgba(255,255,255,0.05) !important;
+}
+.bn-editor .bn-block-content[data-content-type="codeBlock"] > div:has(> select) > .bn-copy-btn.copied {
+  color: #5db075 !important;
 }
 /* Shiki rendered tokens — let them keep their inline colors but normalize spacing */
 .bn-editor .bn-block-content[data-content-type="codeBlock"] .shiki,
