@@ -26,6 +26,24 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  build: {
+    // Split a few heavy, self-contained dependency groups out of the main
+    // bundle so the initial parse cost is lower and the browser doesn't
+    // need to hold the entire 2.8 MB app entry in memory at boot. Each
+    // group only references itself + React (which lives in the entry), so
+    // the circular-vendor problem the previous manualChunks attempt hit
+    // can't recur — there are no edges *between* these chunks.
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return;
+          if (/[\\/](@codemirror|@lezer|@uiw[\\/]react-codemirror)[\\/]/.test(id)) return 'codemirror';
+          if (/[\\/]jszip[\\/]/.test(id)) return 'jszip';
+          if (/[\\/](react-markdown|remark-[^/]+|rehype-[^/]+|micromark[^/]*|mdast-[^/]+|hast-[^/]+|unified|unist-[^/]+|vfile[^/]*)[\\/]/.test(id)) return 'markdown';
+        },
+      },
+    },
+  },
   // Pre-bundle these dependencies in dev so Firefox/Chrome don't have to
   // fetch thousands of individual ES modules over the dev server. Vite
   // turns each entry into a single optimized file that gets served to

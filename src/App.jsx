@@ -3,12 +3,16 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClientInstance } from '@/lib/query-client';
 import { HashRouter as Router, Route, Routes, useParams } from 'react-router-dom';
 import { MantineProvider } from '@mantine/core';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import CommandPalette from '@/components/CommandPalette';
 import Layout from './pages/Layout.jsx';
 import WorkspacePage from './pages/WorkspacePage.jsx';
-import PageEditor from './components/PageEditor.jsx';
+// Lazy-load PageEditor so BlockNote + CodeMirror + every TipTap extension
+// (the heaviest part of the app, ~1.7 MB minified) doesn't enter the V8
+// heap until the user actually opens a page. The home/workspace view
+// loads with just the small Layout + Sidebar chunk.
+const PageEditor = lazy(() => import('./components/PageEditor.jsx'));
 import PageNotFound from './lib/PageNotFound';
 import { usePages } from './hooks/usePages.js';
 import { useRecentPages } from './hooks/useRecentPages.js';
@@ -42,15 +46,21 @@ function PageEditorRoute({ pages, updatePage, savePageContent, createPage, track
   }
 
   return (
-    <PageEditor
-      key={id}
-      page={page}
-      allPages={pages}
-      initialBlocks={initialBlocks}
-      updatePage={updatePage}
-      saveContent={savePageContent}
-      createPage={createPage}
-    />
+    <Suspense fallback={
+      <div className="flex h-full items-center justify-center">
+        <div className="h-5 w-5 animate-spin rounded-full border-2 border-[#3a3a3a] border-t-[#5b86c8]" />
+      </div>
+    }>
+      <PageEditor
+        key={id}
+        page={page}
+        allPages={pages}
+        initialBlocks={initialBlocks}
+        updatePage={updatePage}
+        saveContent={savePageContent}
+        createPage={createPage}
+      />
+    </Suspense>
   );
 }
 

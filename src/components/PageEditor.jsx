@@ -186,11 +186,13 @@ function BlockPageEditor({ page, allPages = [], initialBlocks, updatePage, saveC
     return () => dom.removeEventListener('keydown', handler, true);
   }, [editor]);
 
-  // Inject a copy button into every code block's header bar so BlockNote
-  // code blocks match the card editor's CodeBlock component (which always
-  // shows a copy icon top-right). BlockNote re-renders blocks on edit, so
-  // we watch the editor DOM with a MutationObserver and re-attach buttons
-  // whenever a code block appears or its header gets re-created.
+  // Inject a copy button into every code block's header bar. BlockNote
+  // re-renders blocks on every edit; without throttling, a MutationObserver
+  // here used to fire on every keystroke and scan the entire editor tree
+  // — that's what was freezing the browser on big pages. Now we:
+  //   1. Batch all observed mutations into one rAF callback
+  //   2. Only check nodes inside `addedNodes`, never the whole tree
+  //   3. Bail out fast when a mutation is purely text (no structural change)
   useEffect(() => {
     if (!editor) return;
     const pmView = editor.prosemirrorView || editor._tiptapEditor?.view;
@@ -202,8 +204,7 @@ function BlockPageEditor({ page, allPages = [], initialBlocks, updatePage, saveC
 
     const ensureButton = (codeBlockEl) => {
       const header = codeBlockEl.querySelector(':scope > div:has(> select)');
-      if (!header) return;
-      if (header.querySelector('.bn-copy-btn')) return;
+      if (!header || header.querySelector('.bn-copy-btn')) return;
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'bn-copy-btn';
@@ -228,14 +229,44 @@ function BlockPageEditor({ page, allPages = [], initialBlocks, updatePage, saveC
       header.appendChild(btn);
     };
 
-    const scan = () => {
-      root.querySelectorAll('.bn-block-content[data-content-type="codeBlock"]').forEach(ensureButton);
+    // Initial sweep — only happens once when the page editor mounts.
+    root.querySelectorAll('.bn-block-content[data-content-type="codeBlock"]').forEach(ensureButton);
+
+    let rafId = 0;
+    const pendingNodes = new Set();
+    const flush = () => {
+      rafId = 0;
+      for (const node of pendingNodes) {
+        if (!(node instanceof Element)) continue;
+        if (node.matches?.('.bn-block-content[data-content-type="codeBlock"]')) {
+          ensureButton(node);
+        }
+        // Only descend if the added subtree could plausibly contain a code
+        // block. querySelectorAll on isolated subtrees is much cheaper than
+        // scanning the whole editor.
+        node.querySelectorAll?.('.bn-block-content[data-content-type="codeBlock"]').forEach(ensureButton);
+      }
+      pendingNodes.clear();
     };
 
-    scan();
-    const obs = new MutationObserver(() => scan());
+    const obs = new MutationObserver((records) => {
+      let hasNew = false;
+      for (const r of records) {
+        if (r.type !== 'childList' || !r.addedNodes.length) continue;
+        for (const n of r.addedNodes) {
+          if (n.nodeType === 1) {        // Element only — skip text nodes
+            pendingNodes.add(n);
+            hasNew = true;
+          }
+        }
+      }
+      if (hasNew && !rafId) rafId = requestAnimationFrame(flush);
+    });
     obs.observe(root, { childList: true, subtree: true });
-    return () => obs.disconnect();
+    return () => {
+      obs.disconnect();
+      if (rafId) cancelAnimationFrame(rafId);
+    };
   }, [editor]);
 
   // The latest blocks BlockNote handed to onChange. Used by the unmount
