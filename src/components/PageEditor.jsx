@@ -1270,8 +1270,10 @@ function MarkdownPageEditor({ page, allPages = [], initialBlocks, updatePage, sa
         />
       </div>
 
-      {/* Markdown body */}
-      <div className="mx-auto w-full max-w-[1280px] flex-1 px-12 pb-32">
+      {/* Markdown body — px-16 to match the title block above, so headings,
+          code blocks, and other markdown content line up vertically with
+          the page title instead of sitting 16px further to the left. */}
+      <div className="mx-auto w-full max-w-[1280px] flex-1 px-16 pb-32">
         <MarkdownEditor
           value={text}
           onChange={handleTextChange}
