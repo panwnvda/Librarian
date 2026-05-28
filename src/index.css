@@ -457,31 +457,14 @@ html, body, #root {
   line-height: 1.4;
   text-transform: lowercase;
 }
-/* The <select> is invisible but covers the header so clicks open the
-   dropdown. Anywhere on the header bar = open language picker. */
+/* The native <select> dropdown is removed from the UI entirely. The
+   language is set only via the ```<lang> markdown syntax on creation,
+   matching the card editor's CodeBlock (which also has no picker).
+   We keep the element in the DOM (BlockNote needs it for state) but
+   make it inert: no size, no events, no rendering. */
 .bn-editor .bn-block-content[data-content-type="codeBlock"] > div > select {
-  position: absolute !important;
-  inset: 0 !important;
-  width: 100% !important;
-  height: 100% !important;
-  opacity: 0 !important;
-  background: transparent !important;
-  border: none !important;
-  font-size: 11px !important;
-  color: transparent !important;
-  cursor: pointer !important;
-  z-index: 2 !important;
-  appearance: none !important;
-  -webkit-appearance: none !important;
-  padding: 0 !important;
-  margin: 0 !important;
-  outline: none !important;
-  transition: none !important;
-}
-.bn-editor .bn-block-content[data-content-type="codeBlock"] > div > select > option {
-  background: #1f1f1f !important;
-  color: #e8e8e8 !important;
-  font-weight: 400 !important;
+  display: none !important;
+  pointer-events: none !important;
 }
 
 /* Copy button — injected by PageEditor at runtime as a sibling of the
