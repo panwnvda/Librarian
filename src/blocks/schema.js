@@ -38,57 +38,138 @@ const SUPPORTED_LANGUAGES = {
   regexp:      { name: 'RegExp',      aliases: ['regex'] },
 };
 
-// Custom Shiki theme that mirrors the card editor's CodeBlock palette:
-//   strings       → amber-200   (#fde68a)
-//   numbers       → orange-300  (#fdba74)
-//   comments      → slate-500   (#64748b) italic
-//   keywords      → emerald-300 (#6ee7b7)
-//   variables     → sky-300     (#7dd3fc)
-//   flags / opts  → violet-300  (#c4b5fd)
-//   types         → fuchsia-300 (#f0abfc)
-//   functions     → sky-300     (#7dd3fc)
-//   punctuation   → slate-400   (#94a3b8)
-// Background + foreground match the body box used by the card editor's
-// CodeBlock so the two render visually identically.
+// Custom Shiki theme that mirrors the card editor's CodeBlock palette.
+// Built by cloning github-dark-default's complete scope coverage (40+ rules
+// covering every common token type — keywords, strings, comments, regex,
+// markdown, diff, etc.) and swapping only the hex codes:
+//
+//   github-dark-default        →  CodeBlock palette
+//   ─────────────────────────────────────────────────
+//   #8b949e (comments)         →  #64748b (slate-500, italic)
+//   #ff7b72 (keywords)         →  #6ee7b7 (emerald-300)
+//   #79c0ff (constants/vars)   →  #7dd3fc (sky-300)
+//   #ffa657 (entities)         →  #fdba74 (orange-300)
+//   #d2a8ff (functions)        →  #f0abfc (fuchsia-300)
+//   #7ee787 (tags / inserts)   →  #6ee7b7 (emerald-300)
+//   #a5d6ff (strings / regex)  →  #fde68a (amber-200)
+//   #e6edf3 (default fg)       →  #e8e8e8
+//   #ffa198 (invalid)          →  #e89797
+//   bg #0d1117                 →  #181818
 const librarianDarkTheme = {
   name: 'librarian-dark',
+  displayName: 'Librarian Dark',
   type: 'dark',
+  semanticHighlighting: true,
   colors: {
     'editor.background': '#181818',
     'editor.foreground': '#e8e8e8',
+    'editor.lineHighlightBackground': '#6e76811a',
+    'editor.selectionBackground': '#5b86c847',
+    'editorCursor.foreground': '#5b86c8',
   },
   bg: '#181818',
   fg: '#e8e8e8',
-  settings: [
-    { settings: { foreground: '#e8e8e8', background: '#181818' } },
+  tokenColors: [
     { scope: ['comment', 'punctuation.definition.comment', 'string.comment'],
       settings: { foreground: '#64748b', fontStyle: 'italic' } },
-    { scope: ['string', 'string.quoted', 'string.template', 'punctuation.definition.string'],
-      settings: { foreground: '#fde68a' } },
-    { scope: ['constant.numeric', 'constant.language.boolean', 'constant.language.null', 'constant.language'],
-      settings: { foreground: '#fdba74' } },
-    { scope: ['keyword', 'keyword.control', 'keyword.operator', 'keyword.other', 'storage.modifier'],
+    { scope: ['constant.other.placeholder', 'constant.character'],
       settings: { foreground: '#6ee7b7' } },
-    { scope: ['storage.type', 'support.type', 'entity.name.type', 'entity.name.class', 'entity.other.inherited-class'],
+    { scope: ['constant', 'entity.name.constant', 'variable.other.constant', 'variable.other.enummember', 'variable.language', 'entity'],
+      settings: { foreground: '#7dd3fc' } },
+    { scope: ['constant.numeric'],
+      settings: { foreground: '#fdba74' } },
+    { scope: ['entity.name', 'meta.export.default', 'meta.definition.variable'],
+      settings: { foreground: '#fdba74' } },
+    { scope: ['variable.parameter.function', 'meta.jsx.children', 'meta.block', 'meta.tag.attributes', 'entity.name.constant', 'meta.object.member', 'meta.embedded.expression'],
+      settings: { foreground: '#e8e8e8' } },
+    { scope: 'entity.name.function',
       settings: { foreground: '#f0abfc' } },
-    { scope: ['variable', 'variable.parameter', 'variable.language', 'variable.other'],
-      settings: { foreground: '#7dd3fc' } },
-    { scope: ['entity.name.function', 'support.function', 'meta.function-call.python', 'meta.function-call'],
-      settings: { foreground: '#7dd3fc' } },
-    { scope: ['punctuation', 'meta.brace', 'punctuation.section'],
-      settings: { foreground: '#94a3b8' } },
-    { scope: ['entity.other.attribute-name', 'meta.attribute'],
+    { scope: ['entity.name.tag', 'support.class.component'],
+      settings: { foreground: '#6ee7b7' } },
+    { scope: 'keyword',
+      settings: { foreground: '#6ee7b7' } },
+    { scope: ['storage', 'storage.type'],
+      settings: { foreground: '#6ee7b7' } },
+    { scope: ['storage.modifier.package', 'storage.modifier.import', 'storage.type.java'],
+      settings: { foreground: '#e8e8e8' } },
+    { scope: ['string', 'string punctuation.section.embedded source'],
       settings: { foreground: '#fde68a' } },
-    { scope: ['entity.name.tag', 'meta.tag'],
+    { scope: 'support',
       settings: { foreground: '#7dd3fc' } },
-    // Shell-script specific so flags like `--source-port` render violet
+    { scope: 'meta.property-name',
+      settings: { foreground: '#7dd3fc' } },
+    { scope: 'variable',
+      settings: { foreground: '#fdba74' } },
+    { scope: 'variable.other',
+      settings: { foreground: '#e8e8e8' } },
+    { scope: 'invalid.broken',
+      settings: { foreground: '#e89797', fontStyle: 'italic' } },
+    { scope: 'invalid.deprecated',
+      settings: { foreground: '#e89797', fontStyle: 'italic' } },
+    { scope: 'invalid.illegal',
+      settings: { foreground: '#e89797', fontStyle: 'italic' } },
+    { scope: 'invalid.unimplemented',
+      settings: { foreground: '#e89797', fontStyle: 'italic' } },
+    { scope: 'message.error',
+      settings: { foreground: '#e89797' } },
+    { scope: 'string variable',
+      settings: { foreground: '#7dd3fc' } },
+    { scope: ['source.regexp', 'string.regexp'],
+      settings: { foreground: '#fde68a' } },
+    { scope: ['string.regexp.character-class', 'string.regexp constant.character.escape', 'string.regexp source.ruby.embedded', 'string.regexp string.regexp.arbitrary-repitition'],
+      settings: { foreground: '#fde68a' } },
+    { scope: 'string.regexp constant.character.escape',
+      settings: { foreground: '#6ee7b7', fontStyle: 'bold' } },
+    { scope: 'support.constant',
+      settings: { foreground: '#7dd3fc' } },
+    { scope: 'support.variable',
+      settings: { foreground: '#7dd3fc' } },
+    { scope: 'support.type.property-name.json',
+      settings: { foreground: '#6ee7b7' } },
+    { scope: 'meta.module-reference',
+      settings: { foreground: '#7dd3fc' } },
+    { scope: 'punctuation.definition.list.begin.markdown',
+      settings: { foreground: '#fdba74' } },
+    { scope: ['markup.heading', 'markup.heading entity.name'],
+      settings: { foreground: '#7dd3fc', fontStyle: 'bold' } },
+    { scope: 'markup.quote',
+      settings: { foreground: '#6ee7b7' } },
+    { scope: 'markup.italic',
+      settings: { foreground: '#e8e8e8', fontStyle: 'italic' } },
+    { scope: 'markup.bold',
+      settings: { foreground: '#e8e8e8', fontStyle: 'bold' } },
+    { scope: ['markup.underline'],
+      settings: { fontStyle: 'underline' } },
+    { scope: ['markup.strikethrough'],
+      settings: { fontStyle: 'strikethrough' } },
+    { scope: 'markup.inline.raw',
+      settings: { foreground: '#fde68a' } },
+    { scope: ['markup.deleted', 'meta.diff.header.from-file', 'punctuation.definition.deleted'],
+      settings: { foreground: '#e89797', background: '#490202' } },
+    { scope: ['punctuation.section.embedded'],
+      settings: { foreground: '#6ee7b7' } },
+    { scope: ['markup.inserted', 'meta.diff.header.to-file', 'punctuation.definition.inserted'],
+      settings: { foreground: '#6ee7b7', background: '#04260f' } },
+    { scope: ['markup.changed', 'punctuation.definition.changed'],
+      settings: { foreground: '#fdba74', background: '#5a1e02' } },
+    { scope: 'meta.diff.range',
+      settings: { foreground: '#f0abfc', fontStyle: 'bold' } },
+    { scope: 'meta.diff.header',
+      settings: { foreground: '#7dd3fc' } },
+    { scope: 'meta.separator',
+      settings: { foreground: '#7dd3fc', fontStyle: 'bold' } },
+    { scope: 'meta.output',
+      settings: { foreground: '#7dd3fc' } },
+    { scope: ['brackethighlighter.tag', 'brackethighlighter.curly', 'brackethighlighter.round', 'brackethighlighter.square', 'brackethighlighter.angle', 'brackethighlighter.quote'],
+      settings: { foreground: '#64748b' } },
+    { scope: 'brackethighlighter.unmatched',
+      settings: { foreground: '#e89797' } },
+    { scope: ['constant.other.reference.link', 'string.other.link'],
+      settings: { foreground: '#fde68a' } },
+    // Shell-script specific: flags like `--source-port` render violet, matching
+    // CodeBlock's `text-violet-300` for dashed options
     { scope: ['variable.parameter.option.shell', 'string.unquoted.argument.shell'],
       settings: { foreground: '#c4b5fd' } },
-    // CSS / selectors
-    { scope: ['entity.other.attribute-name.class.css', 'entity.name.tag.css'],
-      settings: { foreground: '#7dd3fc' } },
-    { scope: ['support.type.property-name.css', 'meta.property-name'],
-      settings: { foreground: '#f0abfc' } },
   ],
 };
 
