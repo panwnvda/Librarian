@@ -415,49 +415,56 @@ html, body, #root {
   user-select: text !important;
   -webkit-user-select: text !important;
 }
-/* Make BlockNote code blocks look like the card editor's CodeBlock component:
-   a header bar across the top with the language label on the left + copy
-   button on the right, body below. The language picker <select> is styled
-   to read as a flat label — the dropdown caret only appears on hover. */
+/* Style the BlockNote code block to look like the card editor's CodeBlock:
+   a thin header bar with the language as a TEXT LABEL on the left and the
+   copy button on the right. No visible dropdown caret, no select widget.
+   Language can still be changed by clicking the header (the invisible
+   <select> covers the bar so the dropdown opens), but the click target
+   reads as a clean static label. */
+
+/* The native BlockNote wrapper for <select> becomes the header bar. The
+   `::before` pseudo-element shows the language name via the `data-bn-lang`
+   attribute we set from JS when the select value changes. */
 .bn-editor .bn-block-content[data-content-type="codeBlock"] > div:has(> select) {
-  position: static !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: flex-start !important;
+  position: relative !important;
+  display: block !important;
   background: #1d1d1d !important;
   border-bottom: 1px solid #262626 !important;
-  padding: 6px 14px !important;       /* matches CodeBlock's `px-3.5 py-1.5` */
+  padding: 6px 14px !important;       /* matches CodeBlock's px-3.5 py-1.5 */
   margin: 0 !important;
-  z-index: 1 !important;
-  pointer-events: auto !important;
-  border-radius: 0 !important;        /* outer wrapper has the radius */
+  height: auto !important;
+  border-radius: 0 !important;
 }
+.bn-editor .bn-block-content[data-content-type="codeBlock"] > div:has(> select)::before {
+  content: attr(data-bn-lang);
+  display: inline-block;
+  color: #6e6e6e;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.4;
+  text-transform: lowercase;
+}
+/* The <select> is invisible but covers the header so clicks open the
+   dropdown. Anywhere on the header bar = open language picker. */
 .bn-editor .bn-block-content[data-content-type="codeBlock"] > div > select {
-  opacity: 1 !important;
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  opacity: 0 !important;
   background: transparent !important;
   border: none !important;
-  border-radius: 0 !important;
-  color: #6e6e6e !important;          /* matches CodeBlock's language label */
   font-size: 11px !important;
-  font-weight: 400 !important;
-  font-family: 'JetBrains Mono', 'Fira Code', monospace !important;
-  padding: 0 0 0 0 !important;
+  color: transparent !important;
   cursor: pointer !important;
-  outline: none !important;
-  position: static !important;
-  transition: color 0.15s ease, padding-right 0.15s ease, background-image 0.15s ease !important;
+  z-index: 2 !important;
   appearance: none !important;
   -webkit-appearance: none !important;
-  /* Hide the caret by default — it shows on hover so users can still find it */
-  background-image: none !important;
-  background-repeat: no-repeat !important;
-  background-position: right 0 center !important;
-  background-size: 9px !important;
-}
-.bn-editor .bn-block-content[data-content-type="codeBlock"] > div:has(> select):hover > select {
-  color: #c4c4c4 !important;
-  padding-right: 14px !important;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23808080' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'></polyline></svg>") !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  outline: none !important;
+  transition: none !important;
 }
 .bn-editor .bn-block-content[data-content-type="codeBlock"] > div > select > option {
   background: #1f1f1f !important;
@@ -465,10 +472,15 @@ html, body, #root {
   font-weight: 400 !important;
 }
 
-/* Copy button — injected by PageEditor at runtime as a child of the
-   language-picker header. Positioned at the far right of the bar. */
-.bn-editor .bn-block-content[data-content-type="codeBlock"] > div:has(> select) > .bn-copy-btn {
-  margin-left: auto !important;
+/* Copy button — injected by PageEditor at runtime as a sibling of the
+   header wrapper (NOT inside it), so the invisible <select> covering the
+   header can't intercept its clicks. Positioned absolutely in the
+   top-right corner of the code block. */
+.bn-editor .bn-block-content[data-content-type="codeBlock"] > .bn-copy-btn {
+  position: absolute !important;
+  top: 5px !important;
+  right: 10px !important;
+  z-index: 3 !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -482,11 +494,11 @@ html, body, #root {
   padding: 0 !important;
   transition: color 0.15s ease, background 0.15s ease !important;
 }
-.bn-editor .bn-block-content[data-content-type="codeBlock"] > div:has(> select) > .bn-copy-btn:hover {
+.bn-editor .bn-block-content[data-content-type="codeBlock"] > .bn-copy-btn:hover {
   color: #c4c4c4 !important;
   background: rgba(255,255,255,0.05) !important;
 }
-.bn-editor .bn-block-content[data-content-type="codeBlock"] > div:has(> select) > .bn-copy-btn.copied {
+.bn-editor .bn-block-content[data-content-type="codeBlock"] > .bn-copy-btn.copied {
   color: #5db075 !important;
 }
 /* Shiki rendered tokens — let them keep their inline colors but normalize spacing */

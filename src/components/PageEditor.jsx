@@ -202,9 +202,35 @@ function BlockPageEditor({ page, allPages = [], initialBlocks, updatePage, saveC
     const COPY_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
     const CHECK_SVG = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
 
-    const ensureButton = (codeBlockEl) => {
+    // For every code block we (a) inject a copy button as a direct child of
+    // the block (sibling of the header wrapper, NOT a child of it, so the
+    // invisible <select> covering the header can't eat the button's clicks),
+    // and (b) reflect the selected language onto the header wrapper as a
+    // `data-bn-lang` attribute so CSS can show it via `::before content:
+    // attr(data-bn-lang)`. The header reads as a plain text label even
+    // though the underlying <select> is what actually drives the language.
+    const ensureCodeBlockChrome = (codeBlockEl) => {
       const header = codeBlockEl.querySelector(':scope > div:has(> select)');
-      if (!header || header.querySelector('.bn-copy-btn')) return;
+      const select = header?.querySelector('select');
+
+      // Reflect select.value → header[data-bn-lang] (and re-bind change listener once).
+      if (header && select) {
+        const setLang = () => {
+          const opt = select.options[select.selectedIndex];
+          const label = opt ? opt.textContent.trim() : (select.value || 'text');
+          // Use the user-visible language NAME (e.g. "Bash / Shell") if it's short,
+          // otherwise fall back to the canonical language id (`bash`, `python`).
+          header.setAttribute('data-bn-lang', (label.length <= 18 ? label : select.value) || 'text');
+        };
+        setLang();
+        if (!select.dataset.bnLangBound) {
+          select.dataset.bnLangBound = '1';
+          select.addEventListener('change', setLang);
+        }
+      }
+
+      // Copy button — only inject once per code block.
+      if (codeBlockEl.querySelector(':scope > .bn-copy-btn')) return;
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'bn-copy-btn';
@@ -226,11 +252,11 @@ function BlockPageEditor({ page, allPages = [], initialBlocks, updatePage, saveC
           }, 1500);
         } catch {}
       });
-      header.appendChild(btn);
+      codeBlockEl.appendChild(btn);
     };
 
     // Initial sweep — only happens once when the page editor mounts.
-    root.querySelectorAll('.bn-block-content[data-content-type="codeBlock"]').forEach(ensureButton);
+    root.querySelectorAll('.bn-block-content[data-content-type="codeBlock"]').forEach(ensureCodeBlockChrome);
 
     let rafId = 0;
     const pendingNodes = new Set();
@@ -239,12 +265,12 @@ function BlockPageEditor({ page, allPages = [], initialBlocks, updatePage, saveC
       for (const node of pendingNodes) {
         if (!(node instanceof Element)) continue;
         if (node.matches?.('.bn-block-content[data-content-type="codeBlock"]')) {
-          ensureButton(node);
+          ensureCodeBlockChrome(node);
         }
         // Only descend if the added subtree could plausibly contain a code
         // block. querySelectorAll on isolated subtrees is much cheaper than
         // scanning the whole editor.
-        node.querySelectorAll?.('.bn-block-content[data-content-type="codeBlock"]').forEach(ensureButton);
+        node.querySelectorAll?.('.bn-block-content[data-content-type="codeBlock"]').forEach(ensureCodeBlockChrome);
       }
       pendingNodes.clear();
     };
