@@ -27,10 +27,13 @@ function CardWidgetUI({ json, onSave }) {
     try { return { ...DEFAULTS, ...JSON.parse(json) }; } catch { return { ...DEFAULTS }; }
   });
 
+  // CardEditorPage auto-saves on a 400ms debounce while open. We only sync the
+  // preview state + write through to the doc here — we do NOT close the editor
+  // (that would slam it shut every time the debounce fires). Closing is the
+  // Back/Escape job (onCancel) below.
   const handleSave = (saved) => {
     setCardData(saved);
     onSave(saved);
-    setEditing(false);
   };
 
   return (
@@ -79,10 +82,27 @@ export class CardWidget extends WidgetType {
     container.setAttribute('contenteditable', 'false');
     container.className = 'cm-card-widget';
 
+    const blockFrom = this.blockFrom;
     const onSave = (savedCard) => {
-      const newJson = JSON.stringify(savedCard);
-      const newFence = '```card\n' + newJson + '\n```';
-      view.dispatch({ changes: { from: this.blockFrom, to: this.blockTo, insert: newFence } });
+      const newFence = '```card\n' + JSON.stringify(savedCard) + '\n```';
+      // Defer past any in-progress CodeMirror update. CardEditorPage's debounce
+      // and unmount-flush can fire mid-update; a synchronous dispatch there
+      // throws "Calls to EditorView.update are not allowed while an update is
+      // in progress" and tears down the editor.
+      queueMicrotask(() => {
+        const { doc } = view.state;
+        if (blockFrom > doc.length) return;
+        const startLine = doc.lineAt(blockFrom);
+        // Re-derive the fence range from the live doc so growing/shrinking card
+        // content can't desync a stored end offset.
+        let endNum = doc.lines;
+        for (let n = startLine.number + 1; n <= doc.lines; n++) {
+          if (doc.line(n).text.trim() === '```') { endNum = n; break; }
+        }
+        const endLine = doc.line(endNum);
+        if (doc.sliceString(startLine.from, endLine.to) === newFence) return;
+        view.dispatch({ changes: { from: startLine.from, to: endLine.to, insert: newFence } });
+      });
     };
 
     const root = createRoot(container);
@@ -98,8 +118,13 @@ export class CardWidget extends WidgetType {
     }
   }
 
+  // Identity is the fence's start position, NOT its JSON. If we compared JSON,
+  // every auto-save (which rewrites the fence) would make CodeMirror destroy
+  // and recreate this widget — unmounting the open CardEditorPage and losing
+  // the edit session. Keying on position lets the widget (and its React state)
+  // survive content edits; the live card data is held in CardWidgetUI state.
   eq(other) {
-    return other instanceof CardWidget && other.json === this.json;
+    return other instanceof CardWidget && other.blockFrom === this.blockFrom;
   }
 
   // Let all events through so the card's buttons and expand/collapse work.

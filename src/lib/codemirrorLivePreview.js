@@ -346,6 +346,29 @@ function selectionTouchesState(state, from, to) {
   return false;
 }
 
+// Cheap "does the doc contain a ```card fence?" check, cached by doc identity
+// (docs are immutable, so every cursor move within one doc state reuses the
+// result). Lets cardField skip the syntax-tree walk on selection changes in
+// the common card-less case.
+let _cardScanDoc = null;
+let _cardScanHas = false;
+function docHasCardFence(state) {
+  if (state.doc === _cardScanDoc) return _cardScanHas;
+  let found = false;
+  syntaxTree(state).iterate({
+    enter(node) {
+      if (found) return false;
+      if (node.name === 'CodeInfo') {
+        if (state.doc.sliceString(node.from, node.to).trim().toLowerCase() === 'card') found = true;
+        return false;
+      }
+    },
+  });
+  _cardScanDoc = state.doc;
+  _cardScanHas = found;
+  return found;
+}
+
 function buildCardDecorations(state) {
   const items = [];
   const tree = syntaxTree(state);
@@ -399,7 +422,9 @@ function buildCardDecorations(state) {
 const cardField = StateField.define({
   create: (state) => buildCardDecorations(state),
   update(value, tr) {
-    if (tr.docChanged || tr.selection) return buildCardDecorations(tr.state);
+    if (tr.docChanged) return buildCardDecorations(tr.state);
+    // Selection-only: only re-evaluate (rendered ↔ raw) if a card exists.
+    if (tr.selection && docHasCardFence(tr.state)) return buildCardDecorations(tr.state);
     return value;
   },
   provide: (f) => [
