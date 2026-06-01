@@ -1280,7 +1280,8 @@ function MarkdownPageEditor({ page, allPages = [], initialBlocks, updatePage, sa
           autoFocus
           initialMode="edit"
           minHeight={500}
-          placeholder="Type / or write markdown — # heading, **bold**, `code`, - list"
+          placeholder="Type / for commands, or just write markdown — # heading, **bold**, `code`"
+          enableSlashCommands
         />
       </div>
 

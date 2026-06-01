@@ -6,6 +6,7 @@ import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
 import { tags as t } from '@lezer/highlight';
 import { EditorView } from '@codemirror/view';
 import { markdownLivePreview } from '../lib/codemirrorLivePreview';
+import { slashCommands } from '../lib/codemirrorSlashCommands';
 
 // ─── Theme ────────────────────────────────────────────────────────────────────
 
@@ -32,13 +33,16 @@ const cmTheme = EditorView.theme({
     padding: '0',
     backgroundColor: 'transparent',
   },
-  '.cm-cursor, .cm-dropCursor': { borderLeftColor: '#5b86c8' },
+  '.cm-cursor, .cm-dropCursor': { borderLeftColor: '#5b86c8', borderLeftWidth: '2px' },
   '.cm-line': { padding: '0' },
-  '&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection': {
-    backgroundColor: 'rgba(91,134,200,0.28) !important',
+  '&.cm-focused .cm-selectionBackground, .cm-selectionBackground': {
+    backgroundColor: 'rgba(91,134,200,0.32) !important',
+  },
+  '&.cm-focused .cm-selectionBackground ::selection, ::selection': {
+    backgroundColor: 'rgba(91,134,200,0.32) !important',
   },
   '.cm-gutters': { display: 'none' },
-  '.cm-activeLine': { backgroundColor: 'transparent' },
+  '.cm-activeLine': { backgroundColor: 'rgba(255,255,255,0.024)' },
   '.cm-activeLineGutter': { backgroundColor: 'transparent' },
   '.cm-selectionMatch': { backgroundColor: 'rgba(255,255,255,0.06)' },
   '.cm-placeholder': { color: '#5a5a5a' },
@@ -96,6 +100,7 @@ const MarkdownEditor = forwardRef(function MarkdownEditor({
   minHeight = 200,
   autoFocus = false,
   fill = false,
+  enableSlashCommands = false,
 }, externalRef) {
   const viewRef = useRef(null);
 
@@ -156,7 +161,8 @@ const MarkdownEditor = forwardRef(function MarkdownEditor({
     markdownLivePreview(),
     cmTheme,
     EditorView.lineWrapping,
-  ], []);
+    ...(enableSlashCommands ? [slashCommands()] : []),
+  ], [enableSlashCommands]);
 
   const wrapSelection = useCallback((before, after = before) => {
     const view = viewRef.current;
