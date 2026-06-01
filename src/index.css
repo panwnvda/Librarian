@@ -785,6 +785,48 @@ body {
   text-decoration-color: rgba(134, 176, 227, 0.4);
 }
 
+/* ── Step bubbles (numbered circles under ## Steps, matching MarkdownView) ── */
+.cm-step-bubble {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.55em;
+  height: 1.55em;
+  border-radius: 50%;
+  border: 2px solid #3a3a3a;
+  background: #1a1a1a;
+  color: #86b0e3;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.67em;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  user-select: none;
+  vertical-align: middle;
+  position: relative;
+  top: -1px;
+  margin-right: 0.5em;
+  transition: border-color 0.15s ease, color 0.15s ease;
+  flex-shrink: 0;
+}
+.cm-step-bubble:hover {
+  border-color: #5b86c8;
+}
+.cm-step-bubble.cm-step-done {
+  border-color: #2a2a2a;
+  color: #475569;
+}
+/* Dim the whole line when a step is marked done, but keep the bubble crisp */
+.cm-step-done-line .cm-line {
+  opacity: 0.3;
+  text-decoration: line-through;
+  text-decoration-color: #4a4a4a;
+}
+.cm-step-done-line .cm-step-bubble {
+  opacity: 1 !important;
+  text-decoration: none !important;
+}
+
 /* Fenced code blocks rendered live inside the markdown editor. Each line of
    the block gets a dark background + monospace font; first/last lines round
    the corners. When the cursor enters the block, the original ``` fences

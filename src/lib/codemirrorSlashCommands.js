@@ -24,9 +24,17 @@ const COMMANDS = [
     apply: (view, _c, from, to) =>
       applyInsert(
         view, from, to,
-        '## Card Title\n\n**Overview:** Brief description of the technique.\n\n### Steps\n\n1. First step\n2. Second step\n\n```bash\n# command here\n```\n',
+        '## Card Title\n\n**Overview:** Brief description of the technique.\n\n## Steps\n\n- First step\n- Second step\n\n```bash\n# command here\n```\n',
         3, 'Card Title'.length,
       ),
+  },
+  {
+    label: '/steps',
+    displayLabel: 'Steps',
+    detail: 'Numbered step bubbles (click to mark done)',
+    boost: 9,
+    apply: (view, _c, from, to) =>
+      applyInsert(view, from, to, '## Steps\n\n- ', 13, 0),
   },
   {
     label: '/h1',
