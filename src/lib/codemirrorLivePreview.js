@@ -1,16 +1,16 @@
 // Obsidian / GitBook-style live preview for CodeMirror Markdown.
 //
-// Walks the markdown syntax tree, hides the markers (`#`, `**`, `*`, `` ` ``,
-// `[`/`]`/`(`/`)`) and applies styled CSS classes so the line renders as the
-// rendered output would look. Markers re-appear on whichever line the cursor
-// is currently editing so you can still modify the syntax.
+// Hides syntax markers and applies styled CSS classes so lines render as the
+// formatted output. Markers re-appear on the cursor line so they stay editable.
 //
-// Also renders clickable numbered step-bubbles for `- ` items under a `## Steps`
-// heading, matching the StepsBlock in MarkdownView / TechniqueCard.
+// Also handles two special fenced block types:
+//   ```card  → renders a full TechniqueCard + CardEditorPage widget
+//   (bullet list under ## Steps) → clickable numbered step-bubble circles
 
 import { syntaxTree } from '@codemirror/language';
 import { Decoration, ViewPlugin, EditorView, WidgetType } from '@codemirror/view';
 import { StateEffect, StateField } from '@codemirror/state';
+import { CardWidget } from './codemirrorCardWidget.jsx';
 
 // ── Step bubble state ─────────────────────────────────────────────────────────
 
@@ -37,7 +37,24 @@ class StepBubble extends WidgetType {
     this.lineFrom = lineFrom;
     this.done = done;
   }
+
   toDOM(view) {
+    const el = this._buildEl(view);
+    return el;
+  }
+
+  // Update the existing DOM element in-place so CSS transitions animate.
+  updateDOM(dom, view) {
+    const shouldBeDone = this.done;
+    const wasDone = dom.classList.contains('cm-step-done');
+    if (shouldBeDone !== wasDone) {
+      dom.classList.toggle('cm-step-done', shouldBeDone);
+      dom.title = shouldBeDone ? 'Click to unmark' : 'Click to mark done';
+    }
+    return true;
+  }
+
+  _buildEl(view) {
     const el = document.createElement('span');
     el.className = 'cm-step-bubble' + (this.done ? ' cm-step-done' : '');
     el.textContent = String(this.num);
@@ -50,12 +67,14 @@ class StepBubble extends WidgetType {
     });
     return el;
   }
+
   eq(other) {
     return other instanceof StepBubble &&
       other.num === this.num &&
       other.lineFrom === this.lineFrom &&
       other.done === this.done;
   }
+
   ignoreEvent(e) { return e.type !== 'mousedown'; }
 }
 
@@ -88,15 +107,18 @@ const stepDoneLine = Decoration.line({ class: 'cm-step-done-line' });
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function selectionTouches(view, from, to) {
+function selectionTouches(view, from, to, exclusive = false) {
   for (const r of view.state.selection.ranges) {
-    if (r.from <= to && r.to >= from) return true;
+    if (exclusive) {
+      if (r.from < to && r.to > from) return true;
+    } else {
+      if (r.from <= to && r.to >= from) return true;
+    }
   }
   return false;
 }
 
-// Check if a BulletList starting at `listFrom` is directly under a `## Steps` heading.
-// Scans backward through blank lines to the nearest non-blank line.
+// Returns true when a BulletList at listFrom is directly under a `## Steps` heading.
 function isStepsList(state, listFrom) {
   const listLine = state.doc.lineAt(listFrom);
   for (let n = listLine.number - 1; n >= Math.max(1, listLine.number - 5); n--) {
@@ -122,7 +144,6 @@ function buildDecorations(view) {
   };
 
   for (const { from, to } of view.visibleRanges) {
-    // Step bubble tracking — reset per visible range so partial scrolls work.
     let inStepsList = false;
     let stepNum = 0;
 
@@ -137,7 +158,7 @@ function buildDecorations(view) {
           const level = +name.slice(-1);
           const line = state.doc.lineAt(node.from);
           items.push(headingLine[level].range(line.from));
-          return; // keep descending so HeaderMark is visited
+          return;
         }
 
         if (name === 'Blockquote') {
@@ -173,22 +194,74 @@ function buildDecorations(view) {
         if (name === 'InlineCode')     { items.push(inlineCodeMark.range(node.from, node.to)); return; }
         if (name === 'Strikethrough')  { items.push(strikeMark.range(node.from, node.to)); return; }
 
-        // ── Fenced code blocks ─────────────────────────────────────────────
+        // ── Fenced code blocks (and card blocks) ───────────────────────────
         if (name === 'FencedCode') {
           const startLine = state.doc.lineAt(node.from);
           const endLine   = state.doc.lineAt(node.to);
-          const cursorInside = selectionTouches(view, startLine.from, endLine.to);
 
+          // Gather CodeInfo (language) and CodeText (content) from children.
+          let codeInfo = '';
+          const contentLines = [];
           const cur = node.node.cursor();
           if (cur.firstChild()) {
             do {
-              if (cur.name === 'CodeMark') {
-                const fenceLine = state.doc.lineAt(cur.from);
-                if (!cursorInside) items.push(hideMark.range(fenceLine.from, fenceLine.to));
-              } else if (cur.name === 'CodeInfo') {
-                if (!cursorInside) items.push(hideMark.range(cur.from, cur.to));
+              if (cur.name === 'CodeInfo') {
+                codeInfo = state.doc.sliceString(cur.from, cur.to).trim().toLowerCase();
               }
             } while (cur.nextSibling());
+          }
+
+          // ── Card fence → render full TechniqueCard widget ──────────────
+          if (codeInfo === 'card') {
+            // Use exclusive boundary check so a cursor at startLine.from
+            // (where atomic ranges land after clicking the widget) does NOT
+            // trigger raw-mode and hide the card.
+            const cursorStrictlyInside = selectionTouches(
+              view, startLine.from + 1, endLine.to - 1, true,
+            );
+            if (!cursorStrictlyInside) {
+              // Extract JSON: lines between the opening and closing fence.
+              const jsonLines = [];
+              for (let ln = startLine.number + 1; ln < endLine.number; ln++) {
+                jsonLines.push(state.doc.line(ln).text);
+              }
+              const json = jsonLines.join('\n').trim();
+              const blockEnd = Math.min(endLine.to + 1, state.doc.length);
+              items.push(
+                Decoration.replace({
+                  widget: new CardWidget(json, startLine.from, endLine.to),
+                }).range(startLine.from, blockEnd),
+              );
+            }
+            // When cursor IS strictly inside: show the raw fence as a
+            // plain code block so the JSON is readable/editable.
+            else {
+              for (let ln = startLine.number; ln <= endLine.number; ln++) {
+                const line = state.doc.line(ln);
+                let deco;
+                const totalLines = endLine.number - startLine.number + 1;
+                if (totalLines === 1)             deco = codeBlockSolo;
+                else if (ln === startLine.number) deco = codeBlockFirst;
+                else if (ln === endLine.number)   deco = codeBlockLast;
+                else                               deco = codeBlockMiddle;
+                items.push(deco.range(line.from));
+              }
+            }
+            return;
+          }
+
+          // ── Normal fenced code block ───────────────────────────────────
+          const cursorInside = selectionTouches(view, startLine.from, endLine.to);
+          const cur2 = node.node.cursor();
+          if (cur2.firstChild()) {
+            do {
+              if (cur2.name === 'CodeMark') {
+                const fenceLine = state.doc.lineAt(cur2.from);
+                if (!cursorInside) items.push(hideMark.range(fenceLine.from, fenceLine.to));
+              } else if (cur2.name === 'CodeInfo') {
+                if (!cursorInside) items.push(hideMark.range(cur2.from, cur2.to));
+              }
+            } while (cur2.nextSibling());
           }
 
           const totalLines = endLine.number - startLine.number + 1;
@@ -221,15 +294,13 @@ function buildDecorations(view) {
           return;
         }
 
-        // ── Step bubbles ───────────────────────────────────────────────────
-        // A BulletList (`- ` items) immediately under a `## Steps` heading
-        // is rendered as interactive numbered circles, matching MarkdownView.
+        // ── Step bubbles — BulletList items under ## Steps ─────────────────
         if (name === 'BulletList') {
           if (isStepsList(state, node.from)) {
             inStepsList = true;
             stepNum = 0;
           }
-          return; // descend into ListItem / ListMark children
+          return;
         }
 
         if (name === 'ListItem' && inStepsList) {
@@ -242,8 +313,6 @@ function buildDecorations(view) {
           const lineFrom = line.from;
           const done     = completedSteps.has(lineFrom);
 
-          // Only replace the mark with a bubble when the cursor is off this line
-          // so the user can still edit the `- ` syntax when they click the line.
           if (!selectionTouches(view, line.from, line.to)) {
             items.push(
               Decoration.replace({ widget: new StepBubble(stepNum, lineFrom, done) })
@@ -286,7 +355,5 @@ export function markdownLivePreview() {
     }),
   });
 
-  // Return both the StateField (for completed-step tracking) and the plugin
-  // as a flat extension array so callers don't need to register them separately.
   return [stepsField, plugin];
 }

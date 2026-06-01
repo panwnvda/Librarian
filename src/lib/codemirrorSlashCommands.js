@@ -19,13 +19,13 @@ const COMMANDS = [
   {
     label: '/card',
     displayLabel: 'Card',
-    detail: 'Technique card template',
+    detail: 'Interactive technique card',
     boost: 10,
     apply: (view, _c, from, to) =>
       applyInsert(
         view, from, to,
-        '## Card Title\n\n**Overview:** Brief description of the technique.\n\n## Steps\n\n- First step\n- Second step\n\n```bash\n# command here\n```\n',
-        3, 'Card Title'.length,
+        '```card\n{"title":"New Technique","subtitle":"","tags":[],"accentColor":"cyan","overview":"","steps":[],"commands":[],"subsections":[],"subCards":[]}\n```\n',
+        16, 'New Technique'.length,
       ),
   },
   {
