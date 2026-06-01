@@ -143,6 +143,7 @@ function buildDecorations(view) {
     items.push(hideMark.range(from, to));
   };
 
+  try {
   for (const { from, to } of view.visibleRanges) {
     let inStepsList = false;
     let stepNum = 0;
@@ -211,31 +212,17 @@ function buildDecorations(view) {
             } while (cur.nextSibling());
           }
 
-          // ── Card fence → render full TechniqueCard widget ──────────────
+          // ── Card fence ─────────────────────────────────────────────────
+          // The rendered card is a BLOCK widget, which CodeMirror only allows
+          // from a StateField (see cardField below) — NOT from a plugin. So the
+          // plugin only handles the cursor-inside case: show the raw fence as a
+          // plain code block so the JSON is readable/editable. When the cursor
+          // is outside, cardField paints the TechniqueCard widget instead.
           if (codeInfo === 'card') {
-            // Use exclusive boundary check so a cursor at startLine.from
-            // (where atomic ranges land after clicking the widget) does NOT
-            // trigger raw-mode and hide the card.
             const cursorStrictlyInside = selectionTouches(
               view, startLine.from + 1, endLine.to - 1, true,
             );
-            if (!cursorStrictlyInside) {
-              // Extract JSON: lines between the opening and closing fence.
-              const jsonLines = [];
-              for (let ln = startLine.number + 1; ln < endLine.number; ln++) {
-                jsonLines.push(state.doc.line(ln).text);
-              }
-              const json = jsonLines.join('\n').trim();
-              const blockEnd = Math.min(endLine.to + 1, state.doc.length);
-              items.push(
-                Decoration.replace({
-                  widget: new CardWidget(json, startLine.from, endLine.to),
-                }).range(startLine.from, blockEnd),
-              );
-            }
-            // When cursor IS strictly inside: show the raw fence as a
-            // plain code block so the JSON is readable/editable.
-            else {
+            if (cursorStrictlyInside) {
               for (let ln = startLine.number; ln <= endLine.number; ln++) {
                 const line = state.doc.line(ln);
                 let deco;
@@ -332,9 +319,94 @@ function buildDecorations(view) {
       },
     });
   }
+  } catch (err) {
+    console.error('markdownLivePreview: decoration build failed', err);
+    return Decoration.none;
+  }
 
-  return Decoration.set(items, true);
+  try {
+    return Decoration.set(items, true);
+  } catch (err) {
+    console.error('markdownLivePreview: decoration set failed', err);
+    return Decoration.none;
+  }
 }
+
+// ── Card block widgets (StateField) ────────────────────────────────────────────
+//
+// Block-replacing decorations (the rendered ```card widget spans several lines)
+// MUST come from a StateField — CodeMirror throws "Block decorations may not be
+// specified via plugins" if a ViewPlugin tries to provide them. So cards live
+// here, separate from the inline/line decorations in the plugin above.
+
+function selectionTouchesState(state, from, to) {
+  for (const r of state.selection.ranges) {
+    if (r.from < to && r.to > from) return true;
+  }
+  return false;
+}
+
+function buildCardDecorations(state) {
+  const items = [];
+  const tree = syntaxTree(state);
+
+  tree.iterate({
+    enter(node) {
+      if (node.name !== 'FencedCode') return;
+
+      let codeInfo = '';
+      const cur = node.node.cursor();
+      if (cur.firstChild()) {
+        do {
+          if (cur.name === 'CodeInfo') {
+            codeInfo = state.doc.sliceString(cur.from, cur.to).trim().toLowerCase();
+          }
+        } while (cur.nextSibling());
+      }
+      if (codeInfo !== 'card') return;
+
+      const startLine = state.doc.lineAt(node.from);
+      const endLine   = state.doc.lineAt(node.to);
+
+      // Cursor strictly inside → leave raw so the plugin styles it as editable
+      // JSON. Exclusive bounds so a cursor parked at startLine.from (where the
+      // atomic range lands after a click) still shows the rendered card.
+      if (selectionTouchesState(state, startLine.from + 1, endLine.to - 1)) return;
+
+      const jsonLines = [];
+      for (let ln = startLine.number + 1; ln < endLine.number; ln++) {
+        jsonLines.push(state.doc.line(ln).text);
+      }
+      const json = jsonLines.join('\n').trim();
+      const blockEnd = Math.min(endLine.to + 1, state.doc.length);
+      items.push(
+        Decoration.replace({
+          widget: new CardWidget(json, startLine.from, endLine.to),
+          block: true,
+        }).range(startLine.from, blockEnd),
+      );
+    },
+  });
+
+  try {
+    return Decoration.set(items, true);
+  } catch (err) {
+    console.error('markdownLivePreview: card decoration set failed', err);
+    return Decoration.none;
+  }
+}
+
+const cardField = StateField.define({
+  create: (state) => buildCardDecorations(state),
+  update(value, tr) {
+    if (tr.docChanged || tr.selection) return buildCardDecorations(tr.state);
+    return value;
+  },
+  provide: (f) => [
+    EditorView.decorations.from(f),
+    EditorView.atomicRanges.of((view) => view.state.field(f) || Decoration.none),
+  ],
+});
 
 // ── Plugin export ─────────────────────────────────────────────────────────────
 
@@ -355,5 +427,5 @@ export function markdownLivePreview() {
     }),
   });
 
-  return [stepsField, plugin];
+  return [stepsField, cardField, plugin];
 }
