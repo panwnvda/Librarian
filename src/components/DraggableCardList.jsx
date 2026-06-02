@@ -126,6 +126,7 @@ function DraggableCardList({
                       font={card.font}
                       overview={card.overview}
                       steps={card.steps}
+                      stepBlocks={card.stepBlocks}
                       commands={card.commands}
                       subsections={card.subsections}
                       onExpandedChange={(next) => setCardExpanded(card.id, next)}

@@ -839,6 +839,12 @@ body {
   margin: 0.5em 0;
   user-select: text;
   -webkit-user-select: text;
+  /* Reset the editor's content typography (15px / line-height 2.1) back to the
+     app baseline so the rendered card matches the .library BlockNote card
+     exactly. TechniqueCard sets its own Tailwind sizes per element; only the
+     inherited base would otherwise differ and inflate the card's spacing. */
+  font-size: 16px;
+  line-height: 1.5;
 }
 
 /* Fenced code blocks rendered live inside the markdown editor. Each line of

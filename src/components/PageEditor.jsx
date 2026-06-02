@@ -1270,10 +1270,20 @@ function MarkdownPageEditor({ page, allPages = [], initialBlocks, updatePage, sa
         />
       </div>
 
-      {/* Markdown body — px-16 to match the title block above, so headings,
-          code blocks, and other markdown content line up vertically with
-          the page title instead of sitting 16px further to the left. */}
-      <div className="mx-auto w-full max-w-[1280px] flex-1 px-16 pb-32">
+      {/* Markdown body — px-2 (0.5rem) here + a 3.5rem in-editor gutter
+          (blockGutter) sum to the title's px-16 (4rem), so text lines up with
+          the title while card blocks get a BlockNote-style left gutter for
+          their +/⋮⋮ controls. fontFamily mirrors the BlockNote wrapper above so
+          cards and text inherit the page's chosen default font, not just
+          --app-font. */}
+      <div
+        className={`mx-auto w-full max-w-[1280px] flex-1 px-2 pb-32 ${fontFamily ? '' : fontClass}`}
+        style={
+          fontFamily
+            ? { fontFamily: buildStack(fontFamily, CATALOG_BY_FAMILY[fontFamily] || 'sans') }
+            : (fontClass ? undefined : { fontFamily: 'var(--app-font, Inter, sans-serif)' })
+        }
+      >
         <MarkdownEditor
           value={text}
           onChange={handleTextChange}
@@ -1282,6 +1292,7 @@ function MarkdownPageEditor({ page, allPages = [], initialBlocks, updatePage, sa
           minHeight={500}
           placeholder="Type / for commands, or just write markdown — # heading, **bold**, `code`"
           enableSlashCommands
+          blockGutter
         />
       </div>
 

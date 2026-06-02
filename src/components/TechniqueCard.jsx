@@ -35,7 +35,7 @@ const COLOR_MAP = {
   gray:    { title: 'text-[#c4c4c4]', tag: 'text-[#c4c4c4] border-[#2a2a2a]', progress: 'bg-[#7a7a7a]', circleEmpty: 'border-[#3a3a3a] text-[#c4c4c4]', circleFilled: 'bg-[#7a7a7a] border-[#7a7a7a] text-white' },
 };
 
-function TechniqueCard({ title, subtitle, tags = [], accentColor = 'cyan', overview, steps = [], commands = [], subsections = [], subCards = [], font = null, onExpandedChange = undefined }) {
+function TechniqueCard({ title, subtitle, tags = [], accentColor = 'cyan', overview, steps = [], stepBlocks = [], commands = [], subsections = [], subCards = [], font = null, onExpandedChange = undefined }) {
   const [expanded, setExpanded] = useState(false);
   const [completedSteps, setCompletedSteps] = useState(new Set());
   const [expandedSubsections, setExpandedSubsections] = useState(new Set());
@@ -52,6 +52,13 @@ function TechniqueCard({ title, subtitle, tags = [], accentColor = 'cyan', overv
   const colors = COLOR_MAP[accentColor] || COLOR_MAP.cyan;
   const completedCount = completedSteps.size;
   const totalSteps = steps.length;
+  // Steps render as ordered blocks: numbered steps become interactive bubbles,
+  // free-text blocks render as plain markdown so prose typed under ## Steps is
+  // shown instead of dropped. Fall back to the flat steps[] for legacy cards.
+  const renderBlocks = (stepBlocks && stepBlocks.length)
+    ? stepBlocks
+    : steps.map((s) => ({ type: 'step', text: s }));
+  const hasSteps = renderBlocks.some((b) => b.type === 'step');
   // null/undefined font → inherit from parent (which uses --app-font).
   // Empty class instead of font-mono so the card matches the page default.
   const titleFontClass = font ? getTitleFontClass(font, '') : '';
@@ -156,30 +163,42 @@ function TechniqueCard({ title, subtitle, tags = [], accentColor = 'cyan', overv
             </div>
           )}
 
-          {steps.length > 0 && (
+          {renderBlocks.length > 0 && (
             <div className="mb-4">
               <h4 className="text-[10px] font-mono text-slate-600 uppercase tracking-wider mb-3">
                 Steps
-                <span className="ml-2 text-slate-700 normal-case font-sans">— click to mark done</span>
+                {hasSteps && <span className="ml-2 text-slate-700 normal-case font-sans">— click to mark done</span>}
               </h4>
               <div className="space-y-0">
-                {steps.map((step, i) => {
-                  const done = completedSteps.has(i);
-                  return (
-                    <div key={i} className="flex gap-3 step-connector pb-4 w-full">
-                      <button
-                        onClick={(e) => toggleStep(e, i)}
-                        title={done ? 'Click to unmark' : 'Click to mark done'}
-                        className={`flex-shrink-0 w-7 h-7 rounded-full border-2 flex items-center justify-center transition-all cursor-pointer select-none bg-[#1a1a1a] ${done ? 'border-[#2a2a2a] text-slate-600' : colors.circleEmpty}`}
-                      >
-                        <span className="text-[10px] font-mono font-bold">{i + 1}</span>
-                      </button>
-                      <div className={`flex-1 min-w-0 pt-1 transition-opacity ${done ? 'opacity-25' : ''}`}>
-                        <MarkdownView accent={accentColor} className="text-sm leading-relaxed text-slate-300">{step}</MarkdownView>
+                {(() => {
+                  let stepIdx = -1;
+                  return renderBlocks.map((block, i) => {
+                    if (block.type !== 'step') {
+                      return (
+                        <div key={i} className="pb-4 w-full">
+                          <MarkdownView accent={accentColor} className="text-sm leading-relaxed text-slate-300">{block.text}</MarkdownView>
+                        </div>
+                      );
+                    }
+                    stepIdx += 1;
+                    const sIdx = stepIdx;
+                    const done = completedSteps.has(sIdx);
+                    return (
+                      <div key={i} className="flex gap-3 step-connector pb-4 w-full">
+                        <button
+                          onClick={(e) => toggleStep(e, sIdx)}
+                          title={done ? 'Click to unmark' : 'Click to mark done'}
+                          className={`flex-shrink-0 w-7 h-7 rounded-full border-2 flex items-center justify-center transition-all cursor-pointer select-none bg-[#1a1a1a] ${done ? 'border-[#2a2a2a] text-slate-600' : colors.circleEmpty}`}
+                        >
+                          <span className="text-[10px] font-mono font-bold">{sIdx + 1}</span>
+                        </button>
+                        <div className={`flex-1 min-w-0 pt-1 transition-opacity ${done ? 'opacity-25' : ''}`}>
+                          <MarkdownView accent={accentColor} className="text-sm leading-relaxed text-slate-300">{block.text}</MarkdownView>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  });
+                })()}
               </div>
             </div>
           )}

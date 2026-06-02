@@ -21,12 +21,13 @@ const COMMANDS = [
     displayLabel: 'Card',
     detail: 'Interactive technique card',
     boost: 10,
-    apply: (view, _c, from, to) =>
-      applyInsert(
-        view, from, to,
-        '```card\n{"title":"New Technique","subtitle":"","tags":[],"accentColor":"cyan","overview":"","steps":[],"commands":[],"subsections":[],"subCards":[]}\n```\n',
-        16, 'New Technique'.length,
-      ),
+    apply: (view, _c, from, to) => {
+      // Cursor lands AFTER the fence (not inside the JSON) so the block renders
+      // as a real card immediately — editing happens via the card's Edit button.
+      const text =
+        '```card\n{"title":"New Technique","subtitle":"","tags":[],"accentColor":"cyan","font":null,"overview":"","steps":[],"commands":[],"subsections":[],"subCards":[]}\n```\n';
+      applyInsert(view, from, to, text, text.length, 0);
+    },
   },
   {
     label: '/steps',
@@ -34,7 +35,7 @@ const COMMANDS = [
     detail: 'Numbered step bubbles (click to mark done)',
     boost: 9,
     apply: (view, _c, from, to) =>
-      applyInsert(view, from, to, '## Steps\n\n- ', 13, 0),
+      applyInsert(view, from, to, '1. ', 3, 0),
   },
   {
     label: '/h1',

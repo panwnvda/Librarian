@@ -14,17 +14,26 @@ const cmTheme = EditorView.theme({
   '&': {
     backgroundColor: 'transparent',
     color: '#e8e8e8',
-    fontFamily: 'var(--app-font, Inter, sans-serif)',
+    // inherit the wrapper's font so cards/text follow the page's chosen
+    // default font (the wrapper sets it), falling back to --app-font via the
+    // cascade when no page font is set.
+    fontFamily: 'inherit',
     fontSize: '15px',
-    height: '100%',
+    // No fixed height: the editor grows with its content so the page's own
+    // scroll container (Layout's <main overflow-y-auto>) scrolls — exactly
+    // like the BlockNote editor. A fixed `height:100%` here made the editor a
+    // nested scroll box ("its own subpage"). Use fill mode for that behavior.
   },
   '&.cm-editor': { backgroundColor: 'transparent' },
   '&.cm-editor.cm-focused': { outline: 'none' },
   '.cm-scroller': {
     fontFamily: 'inherit',
-    lineHeight: '1.7',
+    // Unitless so spacing scales proportionally with font size.
+    lineHeight: '2.1',
     padding: '0',
-    overflow: 'auto',
+    // visible (not auto) so the editor never creates its own scrollbars; with
+    // lineWrapping the content fits the width and grows in height instead.
+    overflow: 'visible',
     backgroundColor: 'transparent',
   },
   '.cm-content': {
@@ -47,6 +56,24 @@ const cmTheme = EditorView.theme({
   '.cm-selectionMatch': { backgroundColor: 'rgba(255,255,255,0.06)' },
   '.cm-placeholder': { color: '#5a5a5a' },
 }, { dark: true });
+
+// Optional left gutter for block widgets (cards). It pads .cm-content so the
+// content's left edge sits 3.5rem in from the scroller; card widgets then place
+// their +/⋮⋮ controls in that strip with a negative offset. The padding lives
+// INSIDE .cm-content's box (between the scroller's clip edge and the content),
+// so the controls aren't clipped by .cm-scroller's overflow:auto the way a
+// negative-margin gutter would be. Doubled selector beats the base theme's
+// `.cm-content { padding: 0 }` regardless of CM's style-injection order.
+const blockGutterTheme = EditorView.theme({
+  '.cm-content.cm-content': { paddingLeft: '3.5rem' },
+});
+
+// fill mode: the editor fills its parent and scrolls internally (e.g. a fixed
+// split pane). Restores the height/overflow the base theme intentionally omits.
+const fillTheme = EditorView.theme({
+  '&': { height: '100%' },
+  '.cm-scroller': { overflow: 'auto' },
+});
 
 // Heading sizes flow from the line decoration (cm-md-h1, …) so we don't
 // double-apply font-size here. The remaining markdown tokens stay subtle so
@@ -101,6 +128,7 @@ const MarkdownEditor = forwardRef(function MarkdownEditor({
   autoFocus = false,
   fill = false,
   enableSlashCommands = false,
+  blockGutter = false,
 }, externalRef) {
   const viewRef = useRef(null);
 
@@ -160,9 +188,11 @@ const MarkdownEditor = forwardRef(function MarkdownEditor({
     syntaxHighlighting(mdHighlight),
     markdownLivePreview(),
     cmTheme,
+    ...(blockGutter ? [blockGutterTheme] : []),
+    ...(fill ? [fillTheme] : []),
     EditorView.lineWrapping,
     ...(enableSlashCommands ? [slashCommands()] : []),
-  ], [enableSlashCommands]);
+  ], [enableSlashCommands, blockGutter, fill]);
 
   const wrapSelection = useCallback((before, after = before) => {
     const view = viewRef.current;

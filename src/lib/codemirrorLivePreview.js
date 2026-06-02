@@ -281,7 +281,16 @@ function buildDecorations(view) {
           return;
         }
 
-        // ── Step bubbles — BulletList items under ## Steps ─────────────────
+        // ── Step bubbles ───────────────────────────────────────────────────
+        // Any ordered list renders as clickable numbered step bubbles — no
+        // heading required. A bullet list still qualifies when it sits directly
+        // under a `## Steps` heading, kept for back-compat with older notes.
+        if (name === 'OrderedList') {
+          inStepsList = true;
+          stepNum = 0;
+          return;
+        }
+
         if (name === 'BulletList') {
           if (isStepsList(state, node.from)) {
             inStepsList = true;
@@ -312,7 +321,7 @@ function buildDecorations(view) {
       },
 
       leave(node) {
-        if (node.name === 'BulletList' && inStepsList) {
+        if ((node.name === 'BulletList' || node.name === 'OrderedList') && inStepsList) {
           inStepsList = false;
           stepNum = 0;
         }
