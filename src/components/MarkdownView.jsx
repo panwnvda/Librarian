@@ -53,7 +53,17 @@ function preprocessMarkdown(text) {
   s = s.replace(/([^\n])```[ \t]*$/gm, '$1\n```');
   const fenceCount = (s.match(/^```/gm) || []).length;
   if (fenceCount % 2 !== 0) s += '\n```';
-  s = s.replace(/\n{3,}/g, '\n\n');
+  // Blank-line runs are NOT collapsed: CommonMark merges multiple blank lines
+  // into a single paragraph break, so to honour the vertical space the user
+  // typed we turn each *extra* blank line into an explicit `&nbsp;` spacer
+  // paragraph. Code fences are stashed first so blank lines inside a block are
+  // left verbatim.
+  const stash = [];
+  s = s.replace(/```[\s\S]*?```/g, (m) => { stash.push(m); return `%%FENCE${stash.length - 1}%%`; });
+  // A run of N newlines = N-1 blank lines; one blank line is the normal
+  // paragraph break, so inject (N-2) spacer paragraphs for the extras.
+  s = s.replace(/\n{3,}/g, (m) => '\n\n' + '&nbsp;\n\n'.repeat(m.length - 2));
+  s = s.replace(/%%FENCE(\d+)%%/g, (_, i) => stash[+i]);
   return s;
 }
 
